@@ -1,0 +1,168 @@
+{
+  "revops": {
+    "clay_enrich_lead": {
+      "upstream_id": "clay",
+      "tool": "enrich_person",
+      "mutating": false,
+      "args_template": {
+        "full_name": "{{lead.full_name}}",
+        "email": "{{lead.email}}",
+        "company": "{{lead.company}}",
+        "linkedin_url": "{{lead.linkedin_url}}"
+      }
+    },
+    "airtable_upsert_contact": {
+      "upstream_id": "airtable",
+      "tool": "upsert_record",
+      "mutating": true,
+      "args_template": {
+        "base_id": "{{crm.base_id}}",
+        "table": "{{crm.contacts_table}}",
+        "match": { "Email": "{{lead.email}}" },
+        "fields": {
+          "Name": "{{lead.full_name}}",
+          "Email": "{{lead.email}}",
+          "Company": "{{lead.company}}",
+          "LinkedIn": "{{lead.linkedin_url}}",
+          "Source": "Operator",
+          "Stage": "{{lead.stage}}"
+        }
+      }
+    },
+    "gmail_create_draft": {
+      "upstream_id": "gmail",
+      "tool": "create_draft",
+      "mutating": true,
+      "args_template": {
+        "to": "{{lead.email}}",
+        "subject": "{{email.subject}}",
+        "body": "{{email.body}}"
+      }
+    },
+    "gmail_search_threads": {
+      "upstream_id": "gmail",
+      "tool": "search_threads",
+      "mutating": false,
+      "args_template": {
+        "query": "{{gmail.query}}",
+        "max_results": "{{gmail.max_threads}}"
+      }
+    },
+    "gmail_get_thread": {
+      "upstream_id": "gmail",
+      "tool": "get_thread",
+      "mutating": false,
+      "args_template": {
+        "thread_id": "{{thread_id}}",
+        "include_body": "{{gmail.include_body}}"
+      }
+    },
+    "airtable_create_task": {
+      "upstream_id": "airtable",
+      "tool": "create_record",
+      "mutating": true,
+      "args_template": {
+        "base_id": "{{crm.base_id}}",
+        "table": "{{crm.tasks_table}}",
+        "fields": {
+          "Title": "{{task.title}}",
+          "Due": "{{task.due_iso}}",
+          "ThreadId": "{{task.thread_id}}",
+          "FromEmail": "{{task.from_email}}",
+          "Subject": "{{task.subject}}"
+        }
+      }
+    },
+    "airtable_log_touchpoint": {
+      "upstream_id": "airtable",
+      "tool": "create_record",
+      "mutating": true,
+      "args_template": {
+        "base_id": "{{crm.base_id}}",
+        "table": "{{crm.touchpoints_table}}",
+        "fields": {
+          "Channel": "{{touchpoint.channel}}",
+          "Date": "{{touchpoint.iso_date}}",
+          "Subject": "{{touchpoint.subject}}",
+          "ThreadId": "{{touchpoint.thread_id}}",
+          "FromEmail": "{{touchpoint.from_email}}",
+          "Snippet": "{{touchpoint.snippet}}"
+        }
+      }
+    },
+    "airtable_list_opportunities": {
+      "upstream_id": "airtable",
+      "tool": "list_records",
+      "mutating": false,
+      "args_template": {
+        "base_id": "{{crm.base_id}}",
+        "table": "{{crm.opportunities_table}}"
+      }
+    },
+    "airtable_create_task_for_opp": {
+      "upstream_id": "airtable",
+      "tool": "create_record",
+      "mutating": true,
+      "args_template": {
+        "base_id": "{{crm.base_id}}",
+        "table": "{{crm.tasks_table}}",
+        "fields": {
+          "Title": "{{task.title}}",
+          "Due": "{{task.due_iso}}",
+          "OpportunityId": "{{task.opp_id}}"
+        }
+      }
+    },
+    "airtable_weekly_metrics": {
+      "upstream_id": "airtable",
+      "tool": "get_weekly_metrics",
+      "mutating": false,
+      "args_template": {
+        "base_id": "{{crm.base_id}}",
+        "period_days": "{{period_days}}"
+      }
+    },
+    "gmail_send_exec_brief": {
+      "upstream_id": "gmail",
+      "tool": "send_email",
+      "mutating": true,
+      "args_template": {
+        "to": "{{email.to}}",
+        "subject": "{{email.subject}}",
+        "body": "{{email.body}}"
+      }
+    }
+  },
+  "engops": {
+    "vercel_list_deployments": {
+      "upstream_id": "vercel",
+      "tool": "list_deployments",
+      "mutating": false,
+      "args_template": {
+        "project": "{{eng.project}}",
+        "limit": 10
+      }
+    },
+    "gcloud_cloudrun_list_services": {
+      "upstream_id": "gcloud",
+      "tool": "cloudrun_list_services",
+      "mutating": false,
+      "args_template": {
+        "project_id": "{{eng.gcp_project_id}}",
+        "region": "{{eng.region}}"
+      }
+    },
+    "github_recent_activity": {
+      "upstream_id": "github",
+      "tool": "list_recent_activity",
+      "mutating": false,
+      "args_template": {}
+    },
+    "glassbox_projects_summary": {
+      "upstream_id": "glassbox",
+      "tool": "gb_projects_summary",
+      "mutating": false,
+      "args_template": {}
+    }
+  }
+}

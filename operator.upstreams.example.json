@@ -1,0 +1,79 @@
+[
+  {
+    "id": "clay",
+    "label": "Clay MCP",
+    "cluster": "revops",
+    "allowWrite": false,
+    "transport": {
+      "type": "streamable_http",
+      "url": "http://localhost:9001/mcp",
+      "headers": {}
+    }
+  },
+  {
+    "id": "airtable",
+    "label": "Airtable MCP",
+    "cluster": "revops",
+    "allowWrite": true,
+    "transport": {
+      "type": "streamable_http",
+      "url": "http://localhost:9002/mcp",
+      "headers": {}
+    }
+  },
+  {
+    "id": "gmail",
+    "label": "Gmail MCP",
+    "cluster": "revops",
+    "allowWrite": true,
+    "transport": {
+      "type": "streamable_http",
+      "url": "http://localhost:9003/mcp",
+      "headers": {}
+    }
+  },
+  {
+    "id": "github",
+    "label": "GitHub MCP",
+    "cluster": "engops",
+    "allowWrite": false,
+    "transport": {
+      "type": "streamable_http",
+      "url": "http://localhost:9004/mcp",
+      "headers": {}
+    }
+  },
+  {
+    "id": "vercel",
+    "label": "Vercel MCP",
+    "cluster": "engops",
+    "allowWrite": true,
+    "transport": {
+      "type": "streamable_http",
+      "url": "http://localhost:9005/mcp",
+      "headers": {}
+    }
+  },
+  {
+    "id": "gcloud",
+    "label": "Google Cloud MCP",
+    "cluster": "engops",
+    "allowWrite": true,
+    "transport": {
+      "type": "streamable_http",
+      "url": "http://localhost:9006/mcp",
+      "headers": {}
+    }
+  },
+  {
+    "id": "glassbox",
+    "label": "Glassbox MCP (this repo)",
+    "cluster": "engops",
+    "allowWrite": true,
+    "transport": {
+      "type": "streamable_http",
+      "url": "http://glassbox_mcp:8091/mcp",
+      "headers": {}
+    }
+  }
+]

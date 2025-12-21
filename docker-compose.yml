@@ -1,0 +1,49 @@
+services:
+  operator:
+    build: ./apps/operator
+    environment:
+      - OPERATOR_PORT=8090
+      - OPERATOR_HOST=0.0.0.0
+      # Optional auth. If set, requires: Authorization: Bearer <token>
+      # - OPERATOR_API_KEY=replace_me
+      # Point to upstreams JSON (mounted below)
+      - OPERATOR_UPSTREAMS_PATH=/config/upstreams.json
+      - OPERATOR_ACTION_MAP_PATH=/config/actionmap.json
+      - OPERATOR_ALLOW_WRITE=0
+      - NEO4J_ENABLED=1
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=please_change_me
+      - NEO4J_DATABASE=neo4j
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./operator.upstreams.example.json:/config/upstreams.json:ro
+      - ./operator.actionmap.example.json:/config/actionmap.json:ro
+      - ./.data:/app/.data
+
+  glassbox_mcp:
+    build: ./apps/glassbox-mcp
+    environment:
+      - GLASSBOX_MCP_PORT=8091
+      - GLASSBOX_MCP_HOST=0.0.0.0
+      # Your FastAPI base (set to your deployed API)
+      - GLASSBOX_API_BASE_URL=https://api.glassbox-bio.com/api/v1
+      # Auth options:
+      # - GLASSBOX_BEARER_TOKEN=...
+      # - GLASSBOX_INTERNAL_API_KEY=...
+    ports:
+      - "8091:8091"
+
+  neo4j:
+    image: neo4j:5
+    environment:
+      - NEO4J_AUTH=neo4j/please_change_me
+      - NEO4J_dbms_security_procedures_unrestricted=apoc.*
+      - NEO4J_dbms_security_procedures_allowlist=apoc.*
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - ./.data/neo4j/data:/data
+      - ./.data/neo4j/logs:/logs

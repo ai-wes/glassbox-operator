@@ -1,0 +1,13 @@
+{
+  "name": "operator-control-plane",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm -ws run build",
+    "dev": "npm --workspace apps/operator run dev",
+    "start": "npm --workspace apps/operator run start"
+  }
+}

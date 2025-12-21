@@ -1,0 +1,151 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Operator Control Plane</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Operator Control Plane</h1>
+      <div class="sub">One app • multiple MCP backends • RevOps + EngOps + Glassbox</div>
+      <div class="sub" id="writeGate"></div>
+    </header>
+
+    <section class="card">
+      <h2>Upstreams</h2>
+      <button id="refreshUpstreams">Refresh</button>
+      <pre id="upstreams"></pre>
+    </section>
+
+    <section class="card">
+      <h2>Tools</h2>
+      <button id="refreshTools">Refresh</button>
+      <select id="toolSelect"></select>
+      <textarea id="args" rows="10" spellcheck="false">{}</textarea>
+      <div class="row">
+        <label><input type="checkbox" id="dryRun" /> dry_run</label>
+        <label><input type="checkbox" id="confirmWrite" /> confirm_write</label>
+        <label><input type="checkbox" id="mutatingHint" /> mutating (hint)</label>
+      </div>
+      <button id="runTool">Run Tool (proxy)</button>
+      <pre id="toolResult"></pre>
+    </section>
+
+    <section class="card">
+      <h2>RevOps: Lead Capture</h2>
+      <textarea id="leadPayload" rows="10" spellcheck="false">
+
+{
+"lead": {"full_name":"Jane Doe","email":"jane@example.com","company":"ExampleBio","linkedin_url":"", "stage":"New"},
+"crm": {"base_id":"", "contacts_table":"Contacts"},
+"context": {"offer":"we automate diligence + reporting for biopharma sales ops", "notes":""},
+"confirm_write": false,
+"dry_run": true
+}
+</textarea>
+<button id="runLeadCapture">Run Lead Capture</button>
+
+<pre id="leadResult"></pre>
+</section>
+
+    <section class="card">
+      <h2>RevOps: Inbox Triage → CRM</h2>
+      <textarea id="triagePayload" rows="10" spellcheck="false">
+
+{
+"gmail": {"query":"newer_than:7d in:inbox", "max_threads": 10, "include_body": false},
+"owner_email": "you@yourdomain.com",
+"lead_defaults": {"stage":"Inbound", "company":""},
+"crm": {"base_id":"", "contacts_table":"Contacts", "tasks_table":"Tasks", "touchpoints_table":"Touchpoints"},
+"confirm_write": false,
+"dry_run": true
+}
+</textarea>
+<button id="runInboxTriage">Run Inbox Triage</button>
+
+<pre id="triageResult"></pre>
+</section>
+
+    <section class="card">
+      <h2>RevOps: Pipeline Hygiene</h2>
+      <textarea id="hygienePayload" rows="10" spellcheck="false">
+
+{
+"crm": {
+"base_id":"",
+"opportunities_table":"Opportunities",
+"tasks_table":"Tasks",
+"stage_field":"Stage",
+"last_touch_field":"Last Touch",
+"next_touch_field":"Next Touch",
+"account_field":"Account",
+"primary_contact_field":"Primary Contact",
+"stale_days": 7
+},
+"confirm_write": false,
+"dry_run": true
+}
+</textarea>
+<button id="runPipelineHygiene">Run Pipeline Hygiene</button>
+
+<pre id="hygieneResult"></pre>
+</section>
+
+    <section class="card">
+      <h2>RevOps: Weekly Exec Brief</h2>
+      <textarea id="briefPayload" rows="10" spellcheck="false">
+
+{
+"period_days": 7,
+"recipients": ["you@yourdomain.com"],
+"sender_name": "Operator",
+"subject": "Weekly Revenue Brief",
+"crm": {"base_id":""},
+"confirm_write": false,
+"dry_run": true
+}
+</textarea>
+<button id="runWeeklyBrief">Run Weekly Brief</button>
+
+<pre id="briefResult"></pre>
+</section>
+
+    <section class="card">
+      <h2>EngOps: Status Snapshot</h2>
+      <textarea id="engPayload" rows="8" spellcheck="false">
+
+{
+"eng": {"project":"glassbox-web","gcp_project_id":"your-gcp-project","region":"us-central1"},
+"confirm_write": false,
+"dry_run": true
+}
+</textarea>
+<button id="runEngStatus">Run EngOps Status</button>
+
+<pre id="engResult"></pre>
+</section>
+
+    <section class="card">
+      <h2>Ops: Glassbox Daily</h2>
+      <textarea id="opsPayload" rows="8" spellcheck="false">
+
+{
+"eng": {"project":"glassbox-web","gcp_project_id":"your-gcp-project","region":"us-central1"},
+"glassbox": {"include_projects_summary": true},
+"confirm_write": false,
+"dry_run": true
+}
+</textarea>
+<button id="runOpsDaily">Run Ops Daily</button>
+
+<pre id="opsResult"></pre>
+</section>
+
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
