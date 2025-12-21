@@ -1,0 +1,27 @@
+{
+  "name": "glassbox-operator-mcp",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "build/index.js",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node build/index.js",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.1",
+    "better-sqlite3": "^11.7.0",
+    "neo4j-driver": "^5.28.0",
+    "nanoid": "^5.0.8",
+    "pino": "^9.6.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/better-sqlite3": "^7.6.8",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

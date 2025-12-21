@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_TOKEN": "REPLACE_ME"
+      }
+    },
+    "vercel": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-vercel"],
+      "env": {
+        "VERCEL_TOKEN": "REPLACE_ME"
+      }
+    },
+    "gcp": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-gcp"],
+      "env": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "/secrets/gcp.json"
+      }
+    }
+  }
+}
