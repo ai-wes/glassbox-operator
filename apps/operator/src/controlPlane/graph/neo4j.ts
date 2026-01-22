@@ -1,5 +1,7 @@
 import neo4j, { Driver } from "neo4j-driver";
-import { logger } from "../log.js";
+import { createLogger } from "../../logger.js";
+
+const log = createLogger("control-plane-neo4j");
 
 export type ToolRunGraph = {
   runId: string;
@@ -139,7 +141,7 @@ export class Neo4jGraph {
         }
       );
     } catch (e: any) {
-      logger.warn({ err: e?.message || String(e) }, "Neo4j recordToolRun failed");
+      log.warn({ err: e?.message || String(e) }, "Neo4j recordToolRun failed");
     } finally {
       await session.close();
     }
@@ -173,7 +175,7 @@ export class Neo4jGraph {
         }
       );
     } catch (e: any) {
-      logger.warn({ err: e?.message || String(e) }, "Neo4j upsertDocument failed");
+      log.warn({ err: e?.message || String(e) }, "Neo4j upsertDocument failed");
     } finally {
       await session.close();
     }
@@ -192,7 +194,7 @@ export class Neo4jGraph {
         { runId, docId, relation }
       );
     } catch (e: any) {
-      logger.warn({ err: e?.message || String(e) }, "Neo4j linkToolRunToDocument failed");
+      log.warn({ err: e?.message || String(e) }, "Neo4j linkToolRunToDocument failed");
     } finally {
       await session.close();
     }

@@ -79,7 +79,11 @@ export class OperatorDb {
 
   constructor(dbPath: string) {
     this.db = new Database(dbPath);
-    runMigrations(this.db);
+    const useGcsFuse = dbPath.startsWith("/data/");
+    runMigrations(this.db, {
+      journalMode: useGcsFuse ? "DELETE" : "WAL",
+      synchronous: useGcsFuse ? "FULL" : "NORMAL"
+    });
   }
 
   close() {
@@ -474,7 +478,7 @@ export class OperatorDb {
     stmt.run(row.id, row.fromKind, row.fromId, row.toDocId, row.relation, row.createdAt);
   }
 
-  listDocLinksFor(fromKind: "tool_run" | "draft", fromId: string) {
+  listDocLinksFor(fromKind: "tool_run" | "draft" | "action", fromId: string) {
     const stmt = this.db.prepare(`
       SELECT *
       FROM doc_links

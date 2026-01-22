@@ -1,9 +1,16 @@
 import type Database from "better-sqlite3";
 
-export function runMigrations(db: Database.Database) {
+type MigrationOptions = {
+  journalMode?: "WAL" | "DELETE" | "TRUNCATE" | "PERSIST" | "MEMORY" | "OFF";
+  synchronous?: "FULL" | "NORMAL" | "OFF" | "EXTRA";
+};
+
+export function runMigrations(db: Database.Database, options: MigrationOptions = {}) {
+  const journalMode = options.journalMode ?? "WAL";
+  const synchronous = options.synchronous ?? "NORMAL";
   db.exec(`
-    PRAGMA journal_mode = WAL;
-    PRAGMA synchronous = NORMAL;
+    PRAGMA journal_mode = ${journalMode};
+    PRAGMA synchronous = ${synchronous};
     PRAGMA foreign_keys = ON;
   `);
 
@@ -100,7 +107,7 @@ export function runMigrations(db: Database.Database) {
 
       CREATE TABLE IF NOT EXISTS doc_links (
         id TEXT PRIMARY KEY,
-        from_kind TEXT NOT NULL,  -- 'tool_run'|'draft'
+        from_kind TEXT NOT NULL,  -- 'tool_run'|'draft'|'action'
         from_id TEXT NOT NULL,
         to_doc_id TEXT NOT NULL,
         relation TEXT NOT NULL,   -- 'touched'|'referenced'|'used'

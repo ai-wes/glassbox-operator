@@ -39,9 +39,9 @@
       <textarea id="leadPayload" rows="10" spellcheck="false">
 
 {
-"lead": {"full_name":"Wes Lagarde","email":"wes@glassbox-bio.com","company":"Glassbox Bio","https://www.linkedin.com/company/glassbox-bio/":"", "stage":"New"},
+"lead": {"full_name":"Jane Doe","email":"jane@example.com","company":"ExampleBio","linkedin_url":"", "stage":"New"},
 "crm": {"base_id":"", "contacts_table":"Contacts"},
-"context": {"offer":"Independent Validation Layer for AI-Discovered Drug Targets", "notes":""},
+"context": {"offer":"we automate diligence + reporting for biopharma sales ops", "notes":""},
 "confirm_write": false,
 "dry_run": true
 }
@@ -57,8 +57,8 @@
 
 {
 "gmail": {"query":"newer_than:7d in:inbox", "max_threads": 10, "include_body": false},
-"owner_email": "wes@glassbox-bio.com",
-"lead_defaults": {"stage":"Inbound", "company":"Glassbox Bio"},
+"owner_email": "you@yourdomain.com",
+"lead_defaults": {"stage":"Inbound", "company":""},
 "crm": {"base_id":"", "contacts_table":"Contacts", "tasks_table":"Tasks", "touchpoints_table":"Touchpoints"},
 "confirm_write": false,
 "dry_run": true
@@ -100,7 +100,7 @@
 
 {
 "period_days": 7,
-"recipients": ["wes@glassbox-bio.com"],
+"recipients": ["you@yourdomain.com"],
 "sender_name": "Operator",
 "subject": "Weekly Revenue Brief",
 "crm": {"base_id":""},
@@ -118,7 +118,7 @@
       <textarea id="engPayload" rows="8" spellcheck="false">
 
 {
-"eng": {"project":"glassbox-web","gcp_project_id":"glassbox-marketplace-prod","region":"us-central1"},
+"eng": {"project":"glassbox-web","gcp_project_id":"your-gcp-project","region":"us-central1"},
 "confirm_write": false,
 "dry_run": true
 }
@@ -133,7 +133,7 @@
       <textarea id="opsPayload" rows="8" spellcheck="false">
 
 {
-"eng": {"project":"glassbox-web","gcp_project_id":"glassbox-marketplace-prod","region":"us-central1"},
+"eng": {"project":"glassbox-web","gcp_project_id":"your-gcp-project","region":"us-central1"},
 "glassbox": {"include_projects_summary": true},
 "confirm_write": false,
 "dry_run": true

@@ -47,8 +47,15 @@ function readJsonFile(p: string): any {
 
 export function loadConfig() {
   const host = process.env.OPERATOR_HOST || "0.0.0.0";
-  const port = Number(process.env.OPERATOR_PORT || "8090");
+  const port = Number(process.env.OPERATOR_PORT || process.env.PORT || "8090");
   const apiKey = process.env.OPERATOR_API_KEY || undefined;
+  const actorId = (process.env.OPERATOR_ACTOR_ID || "operator").trim();
+  const dbPath = (process.env.OPERATOR_DB_PATH || "./data/operator.db").trim();
+  const maxPersistBytes = Number(process.env.MAX_PERSIST_BYTES || "200000");
+  if (!Number.isFinite(maxPersistBytes) || maxPersistBytes <= 1024) {
+    throw new Error("MAX_PERSIST_BYTES must be a positive number > 1024");
+  }
+  const operatorVersion = process.env.OPERATOR_VERSION || "1.0.0";
 
   // global gate: if 0, no mutating calls are allowed (even with confirm_write)
   const allowWriteGlobal = (process.env.OPERATOR_ALLOW_WRITE || "0") === "1";
@@ -77,11 +84,17 @@ export function loadConfig() {
   // Ensure data dir exists
   const dataDir = path.resolve(process.cwd(), ".data");
   if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+  const dbDir = path.dirname(path.resolve(dbPath));
+  if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
 
   return {
     host,
     port,
     apiKey,
+    actorId,
+    dbPath,
+    maxPersistBytes,
+    operatorVersion,
     allowWriteGlobal,
     upstreams,
     actionMap

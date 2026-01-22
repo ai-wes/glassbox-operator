@@ -1,73 +1,42 @@
-# Operator MCP API Usage (for ChatGPT Agent)
+# Operator MCP API Usage (HTTP / ChatGPT App)
 
-This doc explains how to connect to and call the Operator MCP server that powers the control plane (KB, drafts, ARP actions, execution v0, and child MCP routing). The server speaks MCP over STDIO and returns JSON in the response text.
+This doc describes the current Operator MCP server (apps/operator). It is **HTTP-based** and exposes **direct tools** (outlook/airtable/clay/glassbox/gcp) without requiring child MCP routing.
 
-## 1) Connection
+## 1) Connection (HTTP)
 
-The Operator MCP server runs over STDIO, not HTTP.
+The MCP endpoint is HTTP and **requires an MCP session**. The client must accept **application/json** and **text/event-stream**.
 
-### Local (recommended for an MCP client)
-Build then run:
-
-```
-cd /mnt/c/Users/wes/desktop/glassbox-operator/apps2/operator-mcp
-npm install
-npm run build
-node build/index.js
-```
-
-Or dev mode:
+Example (Cloud Run):
 
 ```
-npm run dev
+BASE="https://glassbox-operator-mcp-662656813262.us-central1.run.app/mcp"
+
+SESSION=$(curl -sS -D - -o /dev/null \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -X POST "$BASE" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"curl","version":"0.1"}}}' \
+  | tr -d '\r' | awk 'BEGIN{IGNORECASE=1} $1=="mcp-session-id:" {print $2}')
+
+curl -sS \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "mcp-session-id: $SESSION" \
+  -X POST "$BASE" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
 ```
 
-Set env vars as needed:
-
-- `OPERATOR_ACTOR_ID` (default: `wes`)
-- `OPERATOR_DB_PATH` (default: `./data/operator.db`)
-- `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` (optional; enable graph logging)
-- `MCP_SERVERS_CONFIG` (path to child MCP server config JSON)
-- `MAX_PERSIST_BYTES` (default: `200000`)
-
-### Docker Compose
+The response is SSE-formatted:
 
 ```
-cd /mnt/c/Users/wes/desktop/glassbox-operator
-docker compose up --build operator_mcp neo4j
+event: message
+data: {"result":{"tools":[ ... ]},"jsonrpc":"2.0","id":2}
 ```
 
-Note: Docker requires network access to pull `node:22-alpine`. If the build fails with "load metadata" errors, ensure Docker can reach Docker Hub or pre-pull the image.
-
-## 2) MCP client configuration
-
-Example MCP server config (for a ChatGPT agent or MCP client that shells a process):
-
-```
-{
-  "mcpServers": {
-    "operator": {
-      "command": "node",
-      "args": ["/mnt/c/Users/wes/desktop/glassbox-operator/apps2/operator-mcp/build/index.js"],
-      "env": {
-        "OPERATOR_ACTOR_ID": "wes",
-        "OPERATOR_DB_PATH": "/mnt/c/Users/wes/desktop/glassbox-operator/.data/operator.db",
-        "NEO4J_URI": "bolt://localhost:7687",
-        "NEO4J_USER": "neo4j",
-        "NEO4J_PASSWORD": "please_change_me",
-        "MCP_SERVERS_CONFIG": "/mnt/c/Users/wes/desktop/glassbox-operator/mcp-servers.json"
-      }
-    }
-  }
-}
-```
-
-## 3) Tool list (what the agent can call)
+## 2) Tool list (direct tools)
 
 ### Status / routing
 - `operator_status`
-- `child_tools_list`
-- `child_tool_call`
 
 ### Knowledge base
 - `kb_upsert`
@@ -75,6 +44,8 @@ Example MCP server config (for a ChatGPT agent or MCP client that shells a proce
 - `kb_get`
 - `kb_list`
 - `kb_delete`
+- `kb_doc_link_to_action`
+- `kb_validate_copy`
 
 ### Drafts
 - `draft_create`
@@ -91,102 +62,120 @@ Example MCP server config (for a ChatGPT agent or MCP client that shells a proce
 - `arp_execute_approved`
 - `arp_execution_history`
 
+### Graph / Neo4j
+- `neo4j.cypher_run`
+- `graph_query`
+- `graph_set_action_status`
+
 ### Audit
 - `audit_recent_tool_runs`
 - `audit_recent_events`
 
-## 4) Response format
+### Outlook (Microsoft Graph, app-only)
+- `outlook.list_folders`
+- `outlook.search_messages`
+- `outlook.get_message`
+- `outlook.create_draft`
+- `outlook.create_reply_draft`
+- `outlook.update_draft`
+- `outlook.send_draft`
 
-The server returns MCP text content containing JSON. The agent should parse the JSON in the text content.
+### Airtable
+- `airtable.list_bases`
+- `airtable.list_tables`
+- `airtable.list_records`
+- `airtable.get_record`
+- `airtable.create_record`
+- `airtable.update_record`
+- `airtable.upsert_record`
 
-Example response text:
+### Clay (HTTP)
+- `clay.request` (full URL supported)
+- `clay.webhook_send`
 
-```
-{
-  "ok": true,
-  "runId": "abc123",
-  "result": { ... }
-}
-```
+### Glassbox
+- `gb_request`
+- `gb_projects_summary`
+- `gb_pipeline_run`
+- `glassbox.orchestrator.run_phase`
+- `glassbox.pipeline.list_phases`
+- `glassbox.pipeline.run`
+- `glassbox.reports.get_report`
+- `glassbox.reports.get_tiered_report`
+- `glassbox.reports.list_sections`
+- `glassbox.reports.get_section`
+- `glassbox.reports.get_artifact`
+- `glassbox.reports.get_executive_summary`
+- `glassbox.reports.ingest_summary_json`
+- `glassbox.reports.ingest_full_report`
+- `glassbox.documents.list_documents`
+- `glassbox.documents.fetch_document`
+- `glassbox.documents.create_document`
+- `glassbox.documents.update_document`
+- `glassbox.documents.delete_document`
+- `glassbox.blog.list_posts`
+- `glassbox.blog.read_post`
+- `glassbox.blog.create_post`
+- `glassbox.blog.update_post`
+- `glassbox.blog.delete_post`
+- `glassbox.files.list`
+- `glassbox.files.upload`
+- `glassbox.files.get_metadata`
+- `glassbox.files.download`
+- `glassbox.files.delete`
+- `glassbox.files.list_bucket`
+- `glassbox.files.get_download_url`
+- `glassbox.files.delete_key`
+- `glassbox.users.me`
+- `glassbox.users.update_me`
+- `glassbox.users.list`
+- `glassbox.users.update_role`
+- `glassbox.users.delete`
 
-## 5) Common flows
+**Note:** Glassbox calls default to the `/api/v1` prefix.  
+If your base URL already includes `/api/v1`, set `GLASSBOX_API_PREFIX=` (empty) to avoid double-prefixing.
 
-### A) Knowledge base
+### GCP
+- `gcp.cloudrun.list_services`
+- `gcp.cloudrun.list_revisions`
+- `gcp.logs.query`
 
-Upsert doc:
-```
-{"tool":"kb_upsert","arguments":{"type":"policy","title":"Refund Policy","body":"...","tags":["billing","policy"]}}
-```
+## 3) Example tool calls
 
-Search:
+### Outlook list folders
 ```
-{"tool":"kb_search","arguments":{"query":"refunds", "limit": 5}}
-```
-
-### B) Drafts
-
-Create a draft:
-```
-{"tool":"draft_create","arguments":{"kind":"email","title":"Intro","body":"...","meta":{"to":"foo@bar.com"}}}
-```
-
-### C) ARP ingestion + execution v0
-
-1) Ingest ARP packet:
-```
-{"tool":"arp_ingest","arguments":{"arp_json":{...},"actor":"wes"}}
-```
-
-2) Approve action(s):
-```
-{"tool":"arp_action_set_status","arguments":{"action_id":"A-001","status":"approved"}}
-```
-
-3) Preview execution plan:
-```
-{"tool":"arp_execute_plan","arguments":{"packet_id":"<packet_id>","include_high_risk":false}}
-```
-
-4) Wire executor (optional):
-```
-{
-  "tool":"arp_action_set_executor",
-  "arguments":{
-    "action_id":"A-001",
-    "executor":{
-      "server":"airtable",
-      "tool":"airtable_update_record",
-      "arguments":{"base_id":"app...","table":"Opportunities","record_id":"rec...","fields":{"Stage":"Discovery"}},
-      "operation":"update"
-    }
-  }
-}
-```
-
-5) Execute approved actions:
-```
-{"tool":"arp_execute_approved","arguments":{"packet_id":"<packet_id>","include_high_risk":false,"allow_email_send":false}}
+{"method":"tools/call","params":{"name":"outlook.list_folders","arguments":{"top":20}}}
 ```
 
-## 6) Execution safety rules (v0)
+### Outlook search Inbox
+```
+{"method":"tools/call","params":{"name":"outlook.search_messages","arguments":{"folder":"Inbox","top":5}}}
+```
+
+### Airtable list bases
+```
+{"method":"tools/call","params":{"name":"airtable.list_bases","arguments":{}}}
+```
+
+### Clay request (full URL)
+```
+{"method":"tools/call","params":{"name":"clay.request","arguments":{"method":"POST","path":"https://<your-endpoint>","body":{}}}}
+```
+
+## 4) Execution safety rules (v0)
 
 - High-risk actions are skipped unless `include_high_risk: true`.
-- Email send is disabled by default. If an executor has `operation: "send"` and the action type is `send_email`, it will be blocked unless `allow_email_send: true`.
+- Email send is disabled by default. If an executor has `operation: "send"` and the action type is `email_send`/`send_email`, it will be blocked unless `allow_email_send: true`.
 - If no executor is set, actions are marked `unsupported` in the plan.
 
-## 7) Child MCP routing
+## 5) Optional child routing (only if enabled)
 
-The Operator can route to other MCP servers configured in `mcp-servers.json`:
+Child MCP routing is **disabled by default** in the single-container deployment.  
+If you want it, set:
 
-- Use `child_tools_list` to discover tools.
-- Call a tool via `child_tool_call`:
+- `OPERATOR_UPSTREAMS_JSON` with at least one upstream
+- `OPERATOR_ENABLE_CHILD_ROUTING=1`
 
-```
-{"tool":"child_tool_call","arguments":{"server":"github","tool":"repos_list","arguments":{}}}
-```
-
-## 8) Troubleshooting
-
-- If `operator_mcp` fails to connect to Neo4j, wait for Neo4j to be healthy or check credentials.
-- If Docker build fails fetching the base image, ensure Docker has network access or pre-pull `node:22-alpine`.
-
+Only then will these tools appear:
+- `child_tools_list`
+- `child_tool_call`

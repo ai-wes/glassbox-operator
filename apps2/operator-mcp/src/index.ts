@@ -12,7 +12,8 @@ import { Audit } from "./audit.js";
 import { Neo4jGraph } from "./graph/neo4j.js";
 import { parseTags, tagsToJson } from "./persistence/kb.js";
 import { buildExecutionPlan, executeApprovedActions } from "./execution.js";
-import type { DraftCreateInput } from "./persistence/drafts.js";
+import { expandDraftKindFilter, normalizeDraftKind } from "./persistence/drafts.js";
+import type { DraftCreateInput, DraftKindInput } from "./persistence/drafts.js";
 
 type ChildServerHandle = {
   name: string;
@@ -26,6 +27,7 @@ function textResult(text: string) {
 
 async function main() {
   const cfg = loadConfig();
+  const operatorVersion = process.env.OPERATOR_VERSION || "0.1.0";
   const db = new OperatorDb(cfg.dbPath);
 
   // Neo4j optional
@@ -43,6 +45,7 @@ async function main() {
 
   // Child MCP servers (optional)
   const childServers: Map<string, ChildServerHandle> = new Map();
+  const childServerStatus: Array<{ name: string; connected: boolean; toolCount?: number; error?: string }> = [];
   const baseEnv = Object.fromEntries(
     Object.entries(process.env).filter(([, v]) => typeof v === "string")
   ) as Record<string, string>;
@@ -64,8 +67,10 @@ async function main() {
           inputSchema: t.inputSchema
         }));
         childServers.set(name, { name, client, tools });
+        childServerStatus.push({ name, connected: true, toolCount: tools.length });
         logger.info({ name, toolCount: tools.length }, "Connected child MCP server");
       } catch (e: any) {
+        childServerStatus.push({ name, connected: false, error: e?.message || String(e) });
         logger.error({ name, err: e?.message || String(e) }, "Failed to connect child MCP server");
       }
     }
@@ -78,10 +83,48 @@ async function main() {
     version: "0.1.0"
   });
 
+  const ArpActionType = z.enum([
+    // Canonical action types (spec)
+    "email_draft_create",
+    "email_followup_draft",
+    "email_send",
+    "crm_create_lead",
+    "crm_update_opportunity",
+    "crm_stage_change",
+    "lead_enrich_person",
+    "lead_enrich_company",
+    "lead_enrich_batch",
+    "linkedin_post_draft_create",
+    "linkedin_comment_draft_create",
+    "linkedin_post_ready_to_publish",
+    "blog_post_draft_create",
+    "blog_post_publish",
+    "vercel_deploy_redeploy",
+    "vercel_env_update",
+    "gcp_deploy_cloudrun",
+    "gcp_logs_query",
+    "github_issue_create",
+    "github_pr_review_draft",
+    "github_pr_merge",
+    "glassbox_pipeline_run_phase",
+    "glassbox_report_publish_or_ingest",
+    "kb_doc_upsert",
+    "kb_doc_link_to_action",
+    "graph_log_event",
+    // Legacy compatibility
+    "send_email",
+    "update_crm",
+    "publish_post",
+    "deploy",
+    "enrich_lead",
+    "create_task",
+    "other"
+  ]);
+
   const ArpActionSchema = z
     .object({
       id: z.string().min(1),
-      type: z.enum(["send_email", "update_crm", "publish_post", "deploy", "enrich_lead", "create_task", "other"]),
+      type: ArpActionType,
       risk: z.enum(["low", "medium", "high"]),
       requires_approval: z.boolean(),
       payload_ref: z.string().min(1),
@@ -106,18 +149,27 @@ async function main() {
     "Returns Operator control-plane status, including Neo4j + child MCP connectivity.",
     {},
     async () => {
-      const children = [...childServers.values()].map((c) => ({
-        name: c.name,
-        toolCount: c.tools.length
-      }));
+      const dbHealth = db.healthCheck();
       return textResult(
         JSON.stringify(
           {
             ok: true,
+            version: operatorVersion,
             actorId: cfg.actorId,
             dbPath: cfg.dbPath,
+            dbHealthy: dbHealth.ok,
+            dbError: dbHealth.ok ? null : dbHealth.error || "unknown",
             neo4jEnabled: Boolean(graph),
-            childServers: children
+            childServers: childServerStatus,
+            featureFlags: {
+              kb: true,
+              drafts: true,
+              arp: true,
+              execution_v0: true,
+              audit: true,
+              graph: Boolean(graph),
+              child_routing: childServers.size > 0
+            }
           },
           null,
           2
@@ -187,10 +239,27 @@ async function main() {
     "Create or update a company knowledge-base document (policies/procedures/messaging/legal/etc).",
     {
       id: z.string().optional(),
-      type: z.enum(["policy", "procedure", "messaging", "legal", "sales", "marketing", "product", "engineering", "other"]),
+      type: z.enum([
+        "policy",
+        "procedure",
+        "messaging",
+        "legal",
+        "sales_playbook",
+        "faq",
+        "product_spec",
+        "pricing",
+        "case_study",
+        "sales",
+        "marketing",
+        "product",
+        "engineering",
+        "other"
+      ]),
       title: z.string().min(1),
       body: z.string().min(1),
       source: z.string().optional(),
+      owner: z.string().optional(),
+      visibility: z.enum(["public", "internal", "restricted"]).optional(),
       tags: z.array(z.string()).optional()
     },
     async (input) => {
@@ -205,6 +274,8 @@ async function main() {
           title: input.title,
           body: input.body,
           source: input.source || null,
+          owner: input.owner || null,
+          visibility: input.visibility || null,
           tags_json: tagsToJson(input.tags),
           created_at: existing?.created_at || now,
           updated_at: now
@@ -224,6 +295,8 @@ async function main() {
             type: input.type,
             title: input.title,
             source: input.source || null,
+            owner: input.owner || null,
+            visibility: input.visibility || null,
             tags: input.tags || null,
             updatedAt: now
           });
@@ -254,6 +327,8 @@ async function main() {
           type: r.type,
           title: r.title,
           source: r.source,
+          owner: r.owner ?? null,
+          visibility: r.visibility ?? null,
           tags: parseTags(r.tags_json),
           updatedAt: r.updated_at,
           snippet: r.snippet
@@ -290,6 +365,8 @@ async function main() {
             title: doc.title,
             body: doc.body,
             source: doc.source,
+            owner: doc.owner ?? null,
+            visibility: doc.visibility ?? null,
             tags: parseTags(doc.tags_json),
             createdAt: doc.created_at,
             updatedAt: doc.updated_at
@@ -319,6 +396,8 @@ async function main() {
             type: d.type,
             title: d.title,
             source: d.source,
+            owner: d.owner ?? null,
+            visibility: d.visibility ?? null,
             tags: parseTags(d.tags_json),
             createdAt: d.created_at,
             updatedAt: d.updated_at
@@ -351,6 +430,55 @@ async function main() {
     }
   );
 
+  server.tool(
+    "kb_doc_link_to_action",
+    "Link a KB document to an ARP action for traceability (e.g., policy cited in action).",
+    {
+      action_id: z.string().min(1),
+      doc_id: z.string().min(1),
+      relation: z.string().optional()
+    },
+    async ({ action_id, doc_id, relation }) => {
+      const { runId, value } = await audit.withToolRun(
+        "kb_doc_link_to_action",
+        "operator",
+        { action_id, doc_id, relation },
+        async () => {
+          const action = db.getArpAction(action_id);
+          const doc = db.getKbDoc(doc_id);
+          if (!action) return { ok: false, error: "action_not_found" };
+          if (!doc) return { ok: false, error: "doc_not_found" };
+
+          const now = new Date().toISOString();
+          db.linkDoc({
+            id: nanoid(),
+            fromKind: "action",
+            fromId: action_id,
+            toDocId: doc_id,
+            relation: relation || "cited",
+            createdAt: now
+          });
+
+          db.insertEvent({
+            id: nanoid(),
+            type: "kb_doc_linked_to_action",
+            entityId: action_id,
+            payloadJson: JSON.stringify({ action_id, doc_id, relation: relation || "cited" }),
+            createdAt: now
+          });
+
+          if (graph) {
+            await graph.linkDocumentToAction(doc_id, action_id);
+          }
+
+          return { ok: true, action_id, doc_id, relation: relation || "cited" };
+        }
+      );
+
+      return textResult(JSON.stringify({ ok: true, runId, ...value }, null, 2));
+    }
+  );
+
   // -----------------------------
   // DRAFTS (marketing/sales ops outputs you approve)
   // -----------------------------
@@ -358,21 +486,51 @@ async function main() {
     "draft_create",
     "Create a draft artifact (LinkedIn post / email / blog post / etc).",
     {
-      kind: z.enum(["linkedin_post", "email", "blog_post", "proposal", "meeting_notes", "other"]),
+      kind: z.enum([
+        "email_draft",
+        "linkedin_post_draft",
+        "blog_post_draft",
+        "crm_note_draft",
+        "proposal_draft",
+        "ops_runbook_draft",
+        "other",
+        // legacy inputs
+        "email",
+        "linkedin_post",
+        "blog_post",
+        "proposal",
+        "meeting_notes"
+      ]),
       title: z.string().optional(),
       body: z.string().min(1),
-      meta: z.record(z.any()).optional()
+      meta: z.record(z.any()).optional(),
+      status: z
+        .enum([
+          "draft",
+          "ready_for_review",
+          "approved",
+          "queued",
+          "executed",
+          "archived",
+          "rejected",
+          "ready_to_send",
+          "ready_to_post",
+          "ready_to_publish"
+        ])
+        .optional()
     },
     async (input: DraftCreateInput & { meta?: Record<string, any> }) => {
       const { runId, value } = await audit.withToolRun("draft_create", "operator", input, async (runId) => {
         const id = nanoid();
         const now = new Date().toISOString();
+        const normalizedKind = normalizeDraftKind(input.kind as DraftKindInput);
+        const status = input.status || "draft";
         db.createDraft({
           id,
-          kind: input.kind,
+          kind: normalizedKind,
           title: input.title || null,
           body: input.body,
-          status: "draft",
+          status,
           meta_json: input.meta ? JSON.stringify(input.meta) : null,
           created_at: now,
           updated_at: now
@@ -382,17 +540,24 @@ async function main() {
           id: nanoid(),
           type: "draft_created",
           entityId: id,
-          payloadJson: JSON.stringify({ id, kind: input.kind, title: input.title || null }),
+          payloadJson: JSON.stringify({ id, kind: normalizedKind, title: input.title || null }),
           createdAt: now
         });
 
         if (graph) {
-          await graph.upsertDraft({ id, kind: input.kind, title: input.title || null, status: "draft", createdAt: now, updatedAt: now });
+          await graph.upsertDraft({
+            id,
+            kind: normalizedKind,
+            title: input.title || null,
+            status,
+            createdAt: now,
+            updatedAt: now
+          });
           await graph.linkToolRunToDraft(runId, id);
         }
 
         audit.recordDraftCreated(runId, id);
-        return { id, status: "draft", createdAt: now };
+        return { id, status, createdAt: now };
       });
 
       return textResult(JSON.stringify({ ok: true, runId, ...value }, null, 2));
@@ -431,12 +596,28 @@ async function main() {
     {
       limit: z.number().int().min(1).max(100).default(20),
       offset: z.number().int().min(0).default(0),
-      kind: z.enum(["linkedin_post", "email", "blog_post", "proposal", "meeting_notes", "other"]).optional(),
+      kind: z
+        .enum([
+          "email_draft",
+          "linkedin_post_draft",
+          "blog_post_draft",
+          "crm_note_draft",
+          "proposal_draft",
+          "ops_runbook_draft",
+          "other",
+          "email",
+          "linkedin_post",
+          "blog_post",
+          "proposal",
+          "meeting_notes"
+        ])
+        .optional(),
       status: z.string().optional()
     },
     async ({ limit, offset, kind, status }) => {
       const { runId, value } = await audit.withToolRun("draft_list", "operator", { limit, offset, kind, status }, async () => {
-        const rows = db.listDrafts(limit, offset, kind, status);
+        const kindFilter = expandDraftKindFilter(kind as DraftKindInput | undefined);
+        const rows = db.listDrafts(limit, offset, kindFilter, status);
         return {
           limit,
           offset,
@@ -469,6 +650,19 @@ async function main() {
           payloadJson: JSON.stringify({ id, status }),
           createdAt: now
         });
+        if (graph) {
+          const d = db.getDraft(id);
+          if (d) {
+            await graph.upsertDraft({
+              id: d.id,
+              kind: d.kind,
+              title: d.title,
+              status,
+              createdAt: d.created_at,
+              updatedAt: now
+            });
+          }
+        }
         return { id, status, updatedAt: now };
       });
       return textResult(JSON.stringify({ ok: true, runId, ...value }, null, 2));
@@ -516,10 +710,19 @@ async function main() {
           createdAt: now
         });
 
+        if (graph) {
+          await graph.upsertRun({
+            runId: packetId,
+            source: String(arp_json?.run_id || ""),
+            actor: actor || cfg.actorId,
+            createdAt: now
+          });
+        }
+
         for (const a of parsedActions) {
           const details = a.executor ? { executor: a.executor } : (a as any).details;
           const payloadKind = (a as any).payload_kind ? String((a as any).payload_kind) : null;
-          const status = (a as any).status ? String((a as any).status) : a.requires_approval ? "pending" : "approved";
+          const status = (a as any).status ? String((a as any).status) : a.requires_approval ? "proposed" : "approved";
 
           db.createArpAction({
             id: a.id,
@@ -554,6 +757,10 @@ async function main() {
               payloadKind,
               payloadRef: a.payload_ref
             });
+            await graph.linkRunToAction(packetId, a.id, "proposed");
+            if (payloadKind === "draft" && a.payload_ref) {
+              await graph.linkActionToDraft(a.id, a.payload_ref);
+            }
           }
         }
 
@@ -624,6 +831,20 @@ async function main() {
             payloadJson: JSON.stringify({ action_id, status }),
             createdAt: now
           });
+          if (graph) {
+            const action = db.getArpAction(action_id);
+            if (action) {
+              await graph.upsertAction({
+                id: action.id,
+                type: action.action_type,
+                risk: action.risk,
+                requiresApproval: Boolean(action.requires_approval),
+                status,
+                payloadKind: action.payload_kind,
+                payloadRef: action.payload_ref
+              });
+            }
+          }
           return { ok, action_id, status, updatedAt: now };
         }
       );
@@ -771,6 +992,34 @@ async function main() {
     async ({ packet_id, limit }) => {
       const rows = db.listActionExecutionsForPacket(packet_id, limit);
       return textResult(JSON.stringify({ ok: true, packet_id, executions: rows }, null, 2));
+    }
+  );
+
+  // -----------------------------
+  // GRAPH QUERIES (Neo4j)
+  // -----------------------------
+  server.tool(
+    "neo4j.cypher_run",
+    "Run a Cypher query against the Operator Neo4j graph (read by default).",
+    {
+      cypher: z.string().min(1),
+      params: z.record(z.any()).optional(),
+      mode: z.enum(["read", "write"]).optional().default("read")
+    },
+    async ({ cypher, params, mode }) => {
+      if (!graph) {
+        return textResult(JSON.stringify({ ok: false, error: "neo4j_not_configured" }, null, 2));
+      }
+      const { runId, value } = await audit.withToolRun(
+        "neo4j.cypher_run",
+        "operator",
+        { cypher, params, mode },
+        async () => {
+          const res = await graph.runCypher({ cypher, parameters: params || {}, mode });
+          return res;
+        }
+      );
+      return textResult(JSON.stringify({ ok: true, runId, ...value }, null, 2));
     }
   );
 

@@ -1,5 +1,4 @@
 import { nanoid } from "nanoid";
-import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 
 import type { OperatorDb, DraftRow } from "./persistence/db.js";
 import { normalizeDraftKind } from "./persistence/drafts.js";
@@ -9,8 +8,8 @@ export type ChildToolDef = { name: string; description?: string; inputSchema?: a
 
 export type ChildServerHandle = {
   name: string;
-  client: Client;
   tools: ChildToolDef[];
+  callTool: (toolName: string, args: Record<string, any>) => Promise<any>;
 };
 
 export type AuditRunner = <T>(
@@ -525,7 +524,7 @@ export async function executeApprovedActions(params: {
           spec.server,
           { arguments: spec.arguments },
           async () => {
-            return await child.client.callTool({ name: spec.tool, arguments: spec.arguments });
+            return await child.callTool(spec.tool, spec.arguments);
           }
         );
 

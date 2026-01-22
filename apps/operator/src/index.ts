@@ -15,6 +15,9 @@ import { createApiRouter } from "./http/api.js";
 
 import { KnowledgeVault } from "./kb/knowledgeVault.js";
 import { Neo4jGraph, loadNeo4jConfig } from "./graph/neo4j.js";
+import { OperatorDb } from "./controlPlane/persistence/db.js";
+import { Audit } from "./controlPlane/audit.js";
+import { Neo4jGraph as ControlPlaneGraph } from "./controlPlane/graph/neo4j.js";
 
 const log = createLogger("operator");
 
@@ -22,12 +25,40 @@ async function main() {
   const cfg = loadConfig();
   const mgr = new UpstreamManager(cfg.upstreams);
 
+  const db = new OperatorDb(cfg.dbPath);
+  let controlPlaneGraph: ControlPlaneGraph | undefined;
+  if (process.env.NEO4J_URI && process.env.NEO4J_USER && process.env.NEO4J_PASSWORD) {
+    try {
+      controlPlaneGraph = new ControlPlaneGraph(
+        String(process.env.NEO4J_URI),
+        String(process.env.NEO4J_USER),
+        String(process.env.NEO4J_PASSWORD)
+      );
+      await controlPlaneGraph.ensureSchema();
+      await controlPlaneGraph.upsertActor(cfg.actorId, cfg.actorId);
+      log.info("Control-plane Neo4j connected.");
+    } catch (err) {
+      log.warn({ err }, "Control-plane Neo4j unavailable; continuing without graph.");
+      try {
+        await controlPlaneGraph?.close();
+      } catch {
+        // ignore close errors
+      }
+      controlPlaneGraph = undefined;
+    }
+  }
+  const audit = new Audit(db, cfg.actorId, cfg.maxPersistBytes, controlPlaneGraph);
+
   const dataDir = path.resolve(process.cwd(), ".data");
   const kb = new KnowledgeVault(dataDir);
   kb.loadFromDisk();
 
   const graph = new Neo4jGraph(loadNeo4jConfig());
-  await graph.start();
+  try {
+    await graph.start();
+  } catch (err) {
+    log.warn({ err }, "Neo4j graph unavailable; continuing without graph.");
+  }
 
   // Best-effort: connect + load tool catalogs
   await mgr.connectAll(true);
@@ -63,7 +94,13 @@ async function main() {
       actionMap: cfg.actionMap,
       allowWriteGlobal: cfg.allowWriteGlobal,
       kb,
-      graph
+      graph,
+      db,
+      audit,
+      controlPlaneGraph,
+      actorId: cfg.actorId,
+      operatorVersion: cfg.operatorVersion,
+      maxPersistBytes: cfg.maxPersistBytes
     })
   );
 
@@ -76,6 +113,12 @@ async function main() {
   const shutdown = async () => {
     try {
       await graph.stop();
+      if (controlPlaneGraph) await controlPlaneGraph.close();
+    } catch {
+      // ignore
+    }
+    try {
+      db.close();
     } catch {
       // ignore
     }

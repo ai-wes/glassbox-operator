@@ -1,7 +1,9 @@
 import { nanoid } from "nanoid";
 import { OperatorDb } from "./persistence/db.js";
 import { Neo4jGraph } from "./graph/neo4j.js";
-import { logger } from "./log.js";
+import { createLogger } from "../logger.js";
+
+const log = createLogger("control-plane");
 
 function nowIso() {
   return new Date().toISOString();
@@ -135,7 +137,7 @@ export class Audit {
         });
       }
 
-      logger.warn({ toolName, serverName, err: errorPayload.message }, "Tool run failed");
+      log.warn({ toolName, serverName, err: errorPayload.message }, "Tool run failed");
       throw err;
     }
   }
