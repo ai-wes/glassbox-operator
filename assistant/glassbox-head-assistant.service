@@ -1,0 +1,15 @@
+[Unit]
+Description=Glassbox Head Assistant
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/glassbox-operator
+EnvironmentFile=/opt/glassbox-operator/assistant/.env
+ExecStart=/usr/bin/python3 /opt/glassbox-operator/assistant/assistant.py --tasks /opt/glassbox-operator/assistant/tasks.json
+Restart=always
+RestartSec=3
+User=glassbox
+
+[Install]
+WantedBy=multi-user.target

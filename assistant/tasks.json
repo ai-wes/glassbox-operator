@@ -1,0 +1,34 @@
+{
+  "tasks": [
+    {
+      "name": "daily_exec_brief",
+      "prompt": "Produce a concise daily exec brief. Use MCP tools as needed to gather data. Finish with {\"final\": \"...\"}.",
+      "interval_seconds": 86400,
+      "enabled": false
+    },
+    {
+      "name": "weekly_lead_research",
+      "prompt": "Use the lead-research-assistant skill to identify and summarize high-potential leads. Produce a short report and suggested next actions. Use MCP tools only via the operator gateway.",
+      "interval_seconds": 604800,
+      "enabled": false
+    },
+    {
+      "name": "content_curation_pipeline",
+      "prompt": "Use the content-research-writer skill to curate 5 relevant topics and draft outlines for this week. Then use artifacts-builder skill to package the drafts as artifacts. Use MCP tools only via the operator gateway.",
+      "interval_seconds": 604800,
+      "enabled": false
+    },
+    {
+      "name": "bizdev_pr_marketing_plan",
+      "prompt": "Draft a weekly business development + PR/marketing plan with 3 campaigns and 5 outreach ideas. Use MCP tools only via the operator gateway if you need data.",
+      "interval_seconds": 604800,
+      "enabled": false
+    },
+    {
+      "name": "hourly_ops_check",
+      "prompt": "Check operational status and surface anomalies. Use MCP tools as needed. Finish with {\"final\": \"...\"}.",
+      "interval_seconds": 3600,
+      "enabled": false
+    }
+  ]
+}
