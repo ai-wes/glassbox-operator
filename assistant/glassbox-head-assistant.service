@@ -1,5 +1,5 @@
 [Unit]
-Description=Glassbox Head Assistant
+Description=Glassbox Head Assistant (OpenCode)
 After=network.target
 
 [Service]

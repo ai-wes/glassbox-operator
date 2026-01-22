@@ -1,0 +1,34 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: operator-mcp
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/maxScale: "5"
+    spec:
+      containers:
+        - image: REGION-docker.pkg.dev/PROJECT_ID/REPO/operator-mcp:TAG
+          ports:
+            - containerPort: 8090
+          env:
+            - name: OPERATOR_HOST
+              value: "0.0.0.0"
+            - name: OPERATOR_PORT
+              value: "8090"
+            - name: OPERATOR_ALLOW_WRITE
+              value: "0"
+            - name: NEO4J_ENABLED
+              value: "0"
+            # If using OPERATOR_API_KEY, set it via Secret Manager or env var:
+            # - name: OPERATOR_API_KEY
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: operator-api-key
+            #       key: latest
+            # Use OPERATOR_UPSTREAMS_JSON to avoid mounting files on Cloud Run
+            - name: OPERATOR_UPSTREAMS_JSON
+              value: "[]"
+            - name: OPERATOR_ACTION_MAP_JSON
+              value: "{}"
