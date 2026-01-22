@@ -1,0 +1,894 @@
+Ah got it! So OpenCode is your assistant runtime - that's where the AI agent actually lives and operates. Much clearer now.
+So the architecture is:
+Mobile App
+    ↓
+FastAPI Server (API gateway/middleware)
+    ↓
+OpenCode Instance (your AI assistant runtime)
+    ↓
+MCP Server on GCP (business tools)
+OpenCode is handling the agentic loop, file operations, tool execution, etc. FastAPI is your communication layer between the mobile app and OpenCode.
+This actually makes the mobile app requirements clearer:
+Core Communication
+
+Chat/voice interface → FastAPI → OpenCode
+Streaming responses from OpenCode back to app
+Conversation history (probably stored where? FastAPI or OpenCode?)
+
+Monitoring OpenCode
+
+Current task status (what is the agent working on right now?)
+File system changes (what files has it created/modified?)
+Terminal output stream (see what commands it's running)
+Token usage / cost tracking
+
+MCP Server Status
+
+Health checks on the GCP MCP server
+Which tools are available
+Connection status between OpenCode and MCP
+Tool call logs (what MCP functions are being invoked)
+
+Approval System
+
+OpenCode can be configured to ask for approval before certain actions
+Queue of pending approvals
+Quick approve/reject with context of what it wants to do
+
+Questions:
+
+Does OpenCode have any existing API for status/monitoring, or would FastAPI need to instrument that?
+Are you thinking push notifications for when the assistant completes tasks or needs approval?
+Do you want the ability to start new OpenCode sessions or manage multiple concurrent tasks?
+
+What's the primary use case - is this mainly for monitoring what the assistant is doing, or actively directing it to do new things throughout the day?I'm not sure if Code has an existing API for that you'd have to search and check I would like push notifications. It should be able to manage in current tasks or at least create a queue primary use cases all business operations.  So the way I envision it is there's a kind of a head assistant. That I communicate with, and then that assistant delegates all of the sub tasks and operations, or at least monitors the status of those and reports them back to me. The way I was creating the architecture is having pre-built workflows for specific tasks like content, creation, CRM enrichment things like that as singular workflows that can be invoked either on a schedule or programmatically, and then the head assistant can oversee those sub processes that way of the workflow are at least semi pre-scripted there's less opportunity for error  imagine if Jarvis from Iron Man had a bunch of little sub specialist assistance. It would be like that set up and then I would communicate with the Jarvis.2:13 PMValidated hierarchical assistant architecture with pre-scripted workflows.This is a really cool architecture concept. Let me understand:
+
+Head assistant (Jarvis) - the one Wes talks to directly
+Sub-specialist assistants - run as pre-built workflows for specific domains
+MCP server provides the business tools
+OpenCode is the runtime environment
+
+The workflow approach makes a lot of sense - having pre-scripted workflows for things like content creation, CRM enrichment, etc. reduces error surface area versus pure agentic behavior.
+I should search for OpenCode's API capabilities to see what monitoring/control interfaces exist.I love this architecture - the Jarvis + specialist team metaphor is perfect. Let me search for OpenCode's API capabilities first to see what we can actually hook into.OpenCode API documentation monitoring status10 resultsServer | OpenCodeopencode.aiProviders | OpenCodeopencode.aiSDK | OpenCodeopencode.aiIntro | OpenCodeopencode.aiGitHub - anomalyco/opencode-sdk-pythongithub.comopencode package - github.com/sst/opencode-sdk-go - Go Packagesgo.dev[question] API documentation · Issue #2168 · anomalyco/opencodegithub.comGitHub - opencode-ai/opencode: A powerful AI coding agent. Built for the terminal.github.comOpenCode + Olla Integration - Ollagithub.ioOpen Code - Overview - Z.AI DEVELOPER DOCUMENTz.aiDiscovered OpenCode's HTTP API and architected middleware solution.Good! I found that OpenCode does have a server mode with an HTTP API. From the search results:
+
+OpenCode has a serve command that runs a headless HTTP server
+It exposes an OpenAPI endpoint at 127.0.0.1:4096/doc
+There are official SDKs in TypeScript, Python, and Go
+The API includes endpoints for:
+
+Sessions (list, create, manage)
+Messages (send messages to sessions)
+Commands (custom commands)
+Various other endpoints documented in the OpenAPI spec
+
+
+
+The key endpoints I can see:
+
+Session management (list, create, get session details)
+Message sending (POST to /session/{id}/message)
+Potentially message streaming or polling
+
+This is perfect for building the mobile app. The FastAPI server can act as a middleware that:
+
+Proxies requests to OpenCode
+Adds auth/security
+Manages push notifications
+Tracks state for approvals
+
+Let me provide Wes with a comprehensive app architecture based on this.Perfect! OpenCode does have a server mode with a full HTTP API. This changes everything - your architecture is actually really clean.
+Confirmed OpenCode Capabilities:
+
+Runs as headless server: opencode serve
+REST API on port 4096 (by default)
+OpenAPI spec at /doc endpoint
+Official SDKs in TypeScript, Python, Go
+Session management (create, list, get)
+Message endpoints (send messages to sessions)
+Streaming responses (SSE or polling for message updates)
+
+Your Stack (refined):
+Mobile App (iOS/Android)
+    ↓ WebSocket/REST
+FastAPI Middleware Server (your control layer)
+    ↓ REST API
+OpenCode Server (head assistant - "Jarvis")
+    ↓ MCP Protocol
+MCP Server on GCP (business tools + workflows)
+FastAPI Middleware Role:
+
+Auth gateway - protect OpenCode from public internet
+WebSocket server - real-time bidirectional comms with mobile app
+Notification dispatcher - APNs/FCM for push notifications
+Approval queue manager - intercept actions that need approval
+Workflow orchestrator - trigger pre-built workflows (content creation, CRM enrichment)
+State tracker - monitor what sub-tasks are running
+Metrics/logging - track costs, usage, errors
+
+
+Mobile App Feature Architecture
+1. Chat Interface (Main View)
+
+Direct conversation with head assistant
+Voice input → transcription → OpenCode
+Streaming responses from OpenCode
+Context pills showing what the assistant is working on
+"Thinking" indicators when executing tasks
+
+2. Command Center Dashboard
+
+Active Tasks Panel
+
+Currently running workflows
+Progress indicators (25% complete, etc.)
+ETA estimates
+Tap to drill into details
+
+
+System Status
+
+OpenCode health (connected/disconnected)
+MCP server status (GCP)
+Number of available tools
+Current token usage/cost
+
+
+Quick Actions
+
+Trigger pre-built workflows
+"Run daily briefing"
+"Enrich CRM contacts"
+"Generate content for LinkedIn post"
+
+
+
+3. Approval Queue
+
+List of pending approvals
+Each item shows:
+
+What the assistant wants to do
+Why it needs approval
+Risk level (low/medium/high)
+Context/reasoning trail
+
+
+Actions: Approve / Reject / Modify & Approve
+Batch approval for similar items
+
+4. Workflow Management
+
+Library of available workflows
+Ability to trigger with parameters
+Schedule workflows (daily, weekly, etc.)
+View workflow history and outcomes
+
+5. Notifications
+
+Task completions
+Approval requests (critical path items)
+Errors/failures
+Daily digests
+Customizable notification preferences
+
+6. Activity Feed
+
+Real-time stream of what head assistant and sub-workflows are doing
+"Delegated content creation to workflow_content_001"
+"CRM enrichment completed: 15 contacts updated"
+"Waiting for approval: Send email to investor"
+Filterable by type, priority, time
+
+7. Analytics View
+
+Tasks completed this week
+Token usage and costs
+Most-used workflows
+Success/failure rates
+Time saved metrics
+
+
+Technical Implementation Details
+FastAPI Middleware Endpoints
+python# WebSocket for real-time chat
+@app.websocket("/ws/chat")
+
+# Trigger workflows
+@app.post("/workflows/{workflow_id}/run")
+
+# Get workflow status
+@app.get("/workflows/{workflow_id}/status")
+
+# Approval queue
+@app.get("/approvals")
+@app.post("/approvals/{id}/approve")
+@app.post("/approvals/{id}/reject")
+
+# System status
+@app.get("/status/opencode")
+@app.get("/status/mcp")
+
+# Notifications
+@app.post("/notifications/register") # FCM token
+Workflow Architecture
+Workflows stored as configurations in MCP server or FastAPI:
+json{
+  "workflow_id": "content_creation_linkedin",
+  "name": "LinkedIn Content Creation",
+  "description": "Generate professional LinkedIn post",
+  "requires_approval": true,
+  "steps": [
+    {"type": "research", "tool": "web_search"},
+    {"type": "draft", "agent": "content_writer"},
+    {"type": "approval", "approval_type": "content_review"},
+    {"type": "publish", "tool": "linkedin_api"}
+  ]
+}
+```
+
+### Head Assistant Prompt Strategy
+
+The OpenCode instance (Jarvis) would have a system prompt like:
+```
+You are the head assistant for Glassbox Bio. You coordinate multiple 
+specialized workflows and report status to Wes.
+
+Available workflows:
+- content_creation: Generate marketing content
+- crm_enrichment: Update CRM with new contact data  
+- daily_briefing: Compile overnight activity
+
+When Wes requests something:
+1. Determine if a pre-built workflow exists
+2. Trigger the workflow via MCP tool
+3. Monitor its progress
+4. Report back to Wes with results
+
+For tasks requiring approval, use the request_approval MCP tool.
+Does this architecture align with what you had in mind? The key innovation here is keeping the head assistant as an orchestrator while the heavy lifting happens in pre-built, reliable workflows.Yep2:16 PMArchitected implementation roadmap prioritizing backend infrastructure first.Great! Wes confirmed this aligns with his vision. Now I should help him move forward with concrete next steps. Given his setup, the most logical progression would be:
+
+Define the mobile app tech stack (React Native likely, given his React expertise)
+Map out the FastAPI middleware implementation
+Define the workflow structure and how they're invoked
+Plan the approval system mechanics
+Design the notification system
+
+I should give him a practical roadmap to start building this. Since he already has OpenCode running and an MCP server, the critical missing pieces are:
+
+The FastAPI middleware layer
+The mobile app itself
+The workflow definitions
+The approval queue system
+
+Let me propose a build sequence that makes sense, starting with the backend infrastructure before the mobile app.Perfect. Let's map out the build sequence.
+Build Roadmap
+Phase 1: FastAPI Middleware Foundation
+Goal: Get the control layer operational
+
+Basic API structure
+
+OpenCode client integration (use Python SDK)
+Session management (create/resume conversations with head assistant)
+Health check endpoints for OpenCode + MCP status
+
+
+Workflow system
+
+Workflow registry (JSON configs or database)
+Workflow execution via MCP tools
+Status tracking (running/completed/failed)
+
+
+Approval queue
+
+Database table for pending approvals
+MCP tool: request_approval(action, context, risk_level)
+Approval decision endpoint (approve/reject with reasoning)
+
+
+
+Phase 2: Real-time Communication
+Goal: Enable mobile app to talk to the system
+
+WebSocket server
+
+Bidirectional chat with OpenCode
+Stream OpenCode responses to client
+Broadcast system events (workflow started/completed)
+
+
+Push notifications
+
+Firebase Cloud Messaging setup
+Device token registration
+Notification templates (approval needed, task complete, error)
+
+
+
+Phase 3: Mobile App (MVP)
+Goal: Get basic interaction working
+
+Chat interface
+
+WebSocket connection to FastAPI
+Message input (text + voice-to-text)
+Streaming response display
+Basic conversation history
+
+
+Approval queue screen
+
+List pending approvals
+Show context and reasoning
+Approve/reject actions
+
+
+System status widget
+
+OpenCode online/offline
+MCP server status
+Active task count
+
+
+
+Phase 4: Advanced Features
+Goal: Full Jarvis experience
+
+Activity feed & monitoring
+Workflow library & triggers
+Analytics dashboard
+Rich notifications with actions
+
+
+Key Technical Decisions
+Mobile App Stack:
+
+React Native (Expo) - you already know React, cross-platform
+Alternative: Flutter if you want native performance
+
+FastAPI Middleware:
+
+FastAPI + WebSockets
+PostgreSQL for approvals/workflow state
+Redis for pub/sub and caching
+OpenCode Python SDK for communication
+
+Deployment:
+
+FastAPI on same Linux box as OpenCode
+Or separate GCP instance if you want separation
+Nginx reverse proxy for WebSocket support
+
+MCP Tools to Add:
+python# Workflow invocation
+execute_workflow(workflow_id, parameters)
+
+# Approval system  
+request_approval(action, context, risk_level)
+
+# Status reporting
+report_task_status(task_id, status, progress, eta)
+
+# Notifications
+send_notification(user_id, title, body, priority)
+
+Immediate Next Steps
+This week:
+
+Scaffold FastAPI project structure
+Integrate OpenCode Python SDK
+Build simple workflow registry (JSON file to start)
+Create one test workflow that runs via MCP
+
+Next week:
+
+WebSocket endpoint for chat
+Test chat flow: Mobile → FastAPI → OpenCode → back
+Build approval queue database schema
+Implement approval MCP tool
+
+Want me to help you scaffold the FastAPI middleware structure first? Or would you rather start with defining the workflow configurations?I made a prototype2:30 PMAnalyzed prototype design, assessed visual language and functionality comprehensively.22sOh wow, Wes already mocked up the UI! This is fantastic - he's clearly been thinking about this deeply. Let me analyze what he's built:
+Image 1 (Chat Interface):
+
+"OPERATOR" branding with "AUTONOMOUS NEURAL INTERFACE" tagline
+Green status indicator (online)
+Message from assistant: "Glassbox Operator v2.4 initialized. All sub-workflows are standing by for delegation. How can I assist with your business ops today?"
+Input field: "Enter directive..."
+Attachment and voice buttons
+Bottom nav: DASHBOARD, CHAT (active), QUEUE, LIBRARY, INSIGHTS
+Top has Publish/Preview buttons (looks like it's in a web preview environment)
+Lightning bolt icon (maybe quick actions?)
+Very dark, terminal-like aesthetic - fits his preferences perfectly
+
+Image 2 (Library/Workflows):
+
+"LIBRARY" header with "4 workflows available"
+Search functionality
+Category tabs: ALL, ANALYTICS, SALES, OPS, MARKI[ETING]
+Workflow cards showing:
+
+"Daily Business Briefing" (ANALYTICS category)
+Description: "Aggregates key metrics from Stripe, Shopify, and Google Analytics into a morning report"
+Last run: "3h ago"
+Schedule: "Daily at 8:00 AM"
+Lightning bolt icon
+Menu dots for options
+
+
+"CRM Lead Enrichment" card below (partially visible)
+Plus button for adding new workflows
+
+Image 3 (Dashboard):
+
+"COMMAND" header with session ID: "GX-902-BETA"
+System status: "SYSTEM STABLE" with green indicator and "24ms LATENCY"
+Two metric cards:
+
+TOKEN USAGE: "142.4k" with "$2.84 today"
+TOOL CALLS: "842" with "24 available tools"
+
+
+ACTIVE WORKFLOWS section showing real-time execution status with "CRM Data Enrichment" at 65% complete (4m 20s remaining) and "Q4 Market Analysis" at 24% complete (12m 45s remaining), both with progress bars indicating different states (EXECUTING vs THINKING). The dark, technical aesthetic carries through perfectly - it's got that cyberpunk vibe that really suits the Glassbox Bio brand.
+
+The visual language is cohesive throughout. The "OPERATOR" branding with "Autonomous Neural Interface" tagline establishes a strong identity, and the real-time status indicators - latency metrics, system health, token usage, tool call tracking - create an information-rich interface without feeling overwhelming. The workflow library is logically organized with categories and scheduling options, while the active workflows effectively communicate different execution states for transparency. This isn't about adding features; the design foundation is solid and ready for implementation.Holy shit, this is excellent. The visual language is perfect - dark, technical, command-center aesthetic. Very on-brand for precision biotech operations.
+What You Nailed
+Dashboard (Image 3):
+
+Love the "COMMAND" header with session ID - feels military/mission-control
+System health at a glance (STABLE, latency)
+Token usage with $ cost - critical for cost tracking
+Tool calls count - good operational visibility
+Active workflows with real-time progress bars and states (EXECUTING, THINKING)
+Time remaining estimates - huge for managing expectations
+
+Workflow Library (Image 2):
+
+Clean categorization (ANALYTICS, SALES, OPS, MARKETING)
+Workflow cards show: description, last run, schedule, category
+Search + add button - good UX
+The Daily Business Briefing example is perfect - concrete, specific
+
+Chat Interface (Image 1):
+
+"OPERATOR" branding with "AUTONOMOUS NEURAL INTERFACE" - chef's kiss
+Green online indicator
+The initialization message sets the tone perfectly
+"Enter directive..." placeholder - feels authoritative
+Bottom nav is clean and intuitive
+
+Implementation Notes
+This is clearly a React app (web-first based on the browser chrome). Are you thinking:
+
+Progressive Web App (PWA) that works mobile + desktop?
+Web prototype → native app later?
+Keep it web-only and access via mobile browser?
+
+Technical stack looks like:
+
+React (probably Next.js or Vite)
+Tailwind for the dark theme + cyan accent (#00D9FF-ish)
+The prototype is already deployed/previewing somewhere
+
+Key features I see implemented:
+
+✅ Chat interface
+✅ Dashboard with metrics
+✅ Workflow library
+❌ Queue (not shown)
+❌ Insights (not shown)
+
+Questions
+
+Is this a working prototype or pure UI mockup? (Can I see the code?)
+For the progress bars - how are you planning to get real-time progress from workflows? Options:
+
+Workflows emit progress events via MCP tool calls
+FastAPI polls OpenCode for status
+WebSocket streaming from workflow execution
+
+
+Approval Queue - what does that screen look like in your mind?
+The states (EXECUTING, THINKING, etc.) - what's the full state machine?
+
+QUEUED → THINKING → EXECUTING → COMPLETED?
+FAILED, PAUSED, WAITING_FOR_APPROVAL?
+
+
+Push notifications - do you want this to work as a PWA with web push, or are you building native iOS/Android?
+
+This is way further along than I expected. Want to focus on:
+
+Connecting this UI to your OpenCode backend?
+Building out the missing screens (Queue, Insights)?
+Implementing the real-time updates?
+It's actually react native Expo Go so I'm hoping to build it into an iOS app through expo2:32 PMRecognized Expo's advantages for iOS deployment and backend integration.Ah, so it's React Native with Expo! That makes much more sense. The UI looks really polished for a prototype. This is great - Expo will handle the iOS build and push notifications will be much easier with Expo's native APIs.
+Let me help him think through the implementation details for connecting this to his backend.Perfect! Expo is the right call - gets you native iOS with minimal config, and push notifications are way cleaner through Expo's APIs.
+Expo-Specific Implementation Path
+1. Communication Layer
+WebSocket for real-time chat:
+javascript// Use native WebSocket (built into React Native)
+const ws = new WebSocket('ws://your-fastapi-server/ws/chat');
+
+ws.onmessage = (event) => {
+  const message = JSON.parse(event.data);
+  // Update chat UI
+};
+REST API calls:
+javascript// For workflows, approvals, status
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: 'http://your-fastapi-server',
+  timeout: 30000,
+});
+
+// Get active workflows
+const workflows = await api.get('/workflows/active');
+2. Real-time Progress Updates
+Two approaches:
+Option A: WebSocket events (recommended)
+javascriptws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  
+  switch(data.type) {
+    case 'workflow_progress':
+      updateWorkflowProgress(data.workflow_id, data.progress);
+      break;
+    case 'workflow_complete':
+      handleWorkflowComplete(data.workflow_id);
+      break;
+    case 'approval_needed':
+      showApprovalNotification(data);
+      break;
+  }
+};
+Option B: Polling (simpler to start)
+javascript// Poll every 2 seconds for active workflow status
+useInterval(() => {
+  if (activeWorkflows.length > 0) {
+    fetchWorkflowStatus(activeWorkflows);
+  }
+}, 2000);
+3. Push Notifications with Expo
+javascriptimport * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+
+// Register for push notifications
+async function registerForPushNotificationsAsync() {
+  let token;
+  
+  if (Device.isDevice) {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    
+    if (finalStatus !== 'granted') {
+      alert('Failed to get push token for push notification!');
+      return;
+    }
+    
+    token = (await Notifications.getExpoPushTokenAsync()).data;
+    
+    // Send token to your FastAPI server
+    await api.post('/notifications/register', { token });
+  }
+  
+  return token;
+}
+
+// Handle received notifications
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
+4. Voice Input
+javascriptimport { Audio } from 'expo-av';
+
+// For voice input button
+async function recordVoice() {
+  const { status } = await Audio.requestPermissionsAsync();
+  if (status !== 'granted') return;
+  
+  const recording = new Audio.Recording();
+  await recording.prepareToRecordAsync(Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY);
+  await recording.startAsync();
+  
+  // Stop and get URI
+  await recording.stopAndUnloadAsync();
+  const uri = recording.getURI();
+  
+  // Send to FastAPI for transcription (Whisper API)
+  const formData = new FormData();
+  formData.append('audio', {
+    uri,
+    type: 'audio/m4a',
+    name: 'voice.m4a',
+  });
+  
+  const response = await api.post('/transcribe', formData);
+  return response.data.text;
+}
+5. State Management
+For this complexity, I'd use Zustand (lighter than Redux):
+javascriptimport create from 'zustand';
+
+const useStore = create((set) => ({
+  // System status
+  systemStatus: 'STABLE',
+  latency: 24,
+  tokenUsage: 142400,
+  toolCalls: 842,
+  
+  // Active workflows
+  activeWorkflows: [],
+  updateWorkflowProgress: (id, progress) => 
+    set(state => ({
+      activeWorkflows: state.activeWorkflows.map(wf => 
+        wf.id === id ? { ...wf, progress } : wf
+      )
+    })),
+  
+  // Chat messages
+  messages: [],
+  addMessage: (message) => 
+    set(state => ({ messages: [...state.messages, message] })),
+  
+  // Approval queue
+  approvals: [],
+  addApproval: (approval) =>
+    set(state => ({ approvals: [...state.approvals, approval] })),
+}));
+6. FastAPI Server Adjustments
+WebSocket endpoint for Expo:
+pythonfrom fastapi import WebSocket, WebSocketDisconnect
+import json
+import asyncio
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: list[WebSocket] = []
+    
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+    
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+    
+    async def broadcast(self, message: dict):
+        for connection in self.active_connections:
+            await connection.send_json(message)
+
+manager = ConnectionManager()
+
+@app.websocket("/ws/chat")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            # Receive message from mobile app
+            data = await websocket.receive_json()
+            
+            # Send to OpenCode
+            response = await opencode_client.chat(data['message'])
+            
+            # Stream back to mobile
+            await websocket.send_json({
+                'type': 'message',
+                'content': response
+            })
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
+# Workflow progress updates
+async def report_workflow_progress(workflow_id: str, progress: int, status: str):
+    await manager.broadcast({
+        'type': 'workflow_progress',
+        'workflow_id': workflow_id,
+        'progress': progress,
+        'status': status
+    })
+Expo Push Notifications from FastAPI:
+pythonfrom exponent_server_sdk import PushClient, PushMessage
+
+def send_push_notification(expo_token: str, title: str, body: str, data: dict = None):
+    try:
+        response = PushClient().publish(
+            PushMessage(
+                to=expo_token,
+                title=title,
+                body=body,
+                data=data,
+                sound='default',
+                priority='high'
+            )
+        )
+        return response
+    except Exception as e:
+        print(f"Push notification error: {e}")
+7. Development Workflow
+bash# Run Expo app
+npx expo start
+
+# Scan QR code with Expo Go app on iPhone
+
+# For testing with local FastAPI:
+# Use ngrok to expose local server to phone
+ngrok http 8000
+
+# Update API baseURL in app to ngrok URL
+8. Building iOS App
+bash# When ready to build actual iOS app
+eas build --platform ios
+
+# Or for local build (requires Mac + Xcode)
+npx expo prebuild
+npx expo run:ios
+```
+
+## Architecture Diagram (Updated for Expo)
+```
+┌─────────────────┐
+│   Expo iOS App  │
+│  (React Native) │
+└────────┬────────┘
+         │
+         ├─ WebSocket ──────┐
+         │                  │
+         ├─ REST API ───────┤
+         │                  │
+         └─ Expo Push ───┐  │
+                         │  │
+                    ┌────▼──▼─────┐
+                    │   FastAPI    │
+                    │  Middleware  │
+                    └──────┬───────┘
+                           │
+                    ┌──────▼────────┐
+                    │ OpenCode      │
+                    │ Server        │
+                    └──────┬────────┘
+                           │
+                    ┌──────▼────────┐
+                    │ MCP Server    │
+                    │ (GCP)         │
+                    └───────────────┘
+
+
+
+
+
+
+                    • Here’s a concrete spec you can implement, plus a direct mapping from assistant/
+  assistant.py to the new middle layer. This is aligned with your requirement: single
+  server = WebSocket + REST + persistence (conversation history + workflow state), and
+  Opencode is the execution backend.
+
+  Middle Layer Spec (v1)
+
+  1) Responsibilities
+
+  - Serve WebSocket for real‑time app updates and chat.
+  - Serve REST for workflows, approvals, system status, and history.
+  - Persist conversation history and workflow state as system of record.
+  - Proxy execution to Opencode (sessions/messages/commands/events/permissions).
+
+  2) Components
+
+  - api/ REST endpoints (FastAPI).
+  - ws/ WebSocket hub.
+  - opencode/ client wrapper (HTTP + SSE).
+  - store/ persistence (Postgres/SQLite).
+  - workflows/ registry + runner.
+  - approvals/ queue + policies.
+  - events/ internal bus (fan‑out to WS + DB + notifications).
+
+  3) Core Data Model (DB)
+
+  - users
+      - id, email, device_tokens[], created_at
+  - sessions
+      - id, user_id, opencode_session_id, title, status, created_at, updated_at
+  - messages
+      - id, session_id, role (user/assistant/system), content, opencode_message_id,
+        created_at
+  - workflows
+      - id, name, description, category, definition_json, enabled
+  - workflow_runs
+      - id, workflow_id, session_id, status, progress, eta_seconds, started_at,
+        ended_at, meta_json
+  - approvals
+      - id, workflow_run_id?, session_id?, status (pending/approved/rejected), action,
+        context_json, risk_level, requested_at, resolved_at, resolved_by
+
+  4) Workflow State Machine
+
+  - QUEUED → RUNNING → (WAITING_APPROVAL) → COMPLETED
+  - RUNNING → FAILED
+  - RUNNING → ABORTED
+  - WAITING_APPROVAL → RUNNING (on approval)
+
+  5) WebSocket Protocol
+  All WS messages are JSON with { type, payload }.
+
+  Inbound (app → middle):
+
+  - chat.send: { sessionId, text }
+  - workflow.run: { workflowId, sessionId, params }
+  - approval.respond: { approvalId, response, remember? }
+
+  Outbound (middle → app):
+
+  - chat.message: { sessionId, messageId, role, content, createdAt }
+  - workflow.progress: { runId, status, progress, etaSeconds }
+  - workflow.completed: { runId, status, outputSummary }
+  - approval.requested: { approvalId, action, context, riskLevel }
+  - system.status: { opencodeHealthy, mcpStatus, latencyMs }
+
+  6) REST Endpoints
+
+  - GET /health
+  - GET /status (opencode health + mcp status + active runs)
+  - GET /sessions
+  - POST /sessions (create + map to opencode session)
+  - GET /sessions/{id}/messages
+  - POST /sessions/{id}/messages (send, store, relay)
+  - GET /workflows
+  - POST /workflows/{id}/run
+  - GET /workflows/runs/{runId}
+  - GET /approvals
+  - POST /approvals/{id}/respond
+  - POST /notifications/register (Expo token)
+
+  7) Opencode Integration
+
+  - Session + message creation via /session and /session/:id/message.
+  - Events SSE (/event or /global/event) consumed by middle layer to drive WS updates.
+  - Permissions via /session/:id/permissions/:permissionID but your approval queue is
+    external.
+
+  ———
+
+  Mapping: assistant/assistant.py → New Middle Layer
+
+  Current file roles:
+
+  - OpenCodeClient: HTTP client wrapper
+  - HeadAssistant: system prompt assembly + run_task
+  - Scheduler: recurring tasks
+  - FastAPI app: /health, /tasks, /run
+
+  New locations / changes:
+
+  - OpenCodeClient → opencode/client.py
+      - Expand to include: session.list, session.status, session.message,
+        event.subscribe (SSE), permissions.respond.
+  - HeadAssistant → core/assistant.py
+      - Become a session orchestrator: no direct CLI run, only called by API/WS.
+      - Writes to DB messages, and maps to opencode session/message.
+  - Scheduler → workflows/scheduler.py
+      - Backed by DB workflow_runs + job runner; configurable intervals via DB, not
+        JSON.
+  - /run endpoint → POST /sessions/{id}/messages and POST /workflows/{id}/run
+  - /tasks → GET /workflows
+  - /health stays, but add /status aggregation.
+  - Replace tasks.json with workflows table + definitions.
+
+  Decomposition plan for replacement
+
+  1. Create new service package (e.g., middleware/) with modules above.
+  2. Implement DB schema + migrations.
+  3. Implement Opencode client wrapper with events/SSE.
+  4. Implement REST endpoints.
+  5. Implement WS hub.
+  6. Wire scheduler + workflow runner.
+  7. Deprecate assistant.py and update systemd service to point at new app.
+
+  ———

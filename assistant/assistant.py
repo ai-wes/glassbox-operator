@@ -1,4 +1,6 @@
 import argparse
+
+# Deprecated: replaced by middleware/ service (REST + WebSocket + persistence).
 import json
 import os
 import threading

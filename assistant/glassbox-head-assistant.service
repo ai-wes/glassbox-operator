@@ -1,12 +1,12 @@
 [Unit]
-Description=Glassbox Head Assistant (OpenCode)
+Description=Glassbox Middle Layer (OpenCode)
 After=network.target
 
 [Service]
 Type=simple
 WorkingDirectory=/opt/glassbox-operator
-EnvironmentFile=/opt/glassbox-operator/assistant/.env
-ExecStart=/usr/bin/python3 /opt/glassbox-operator/assistant/assistant.py --tasks /opt/glassbox-operator/assistant/tasks.json
+EnvironmentFile=/opt/glassbox-operator/middleware/.env
+ExecStart=/usr/bin/python3 -m uvicorn middleware.app:app --host 0.0.0.0 --port 8099
 Restart=always
 RestartSec=3
 User=glassbox

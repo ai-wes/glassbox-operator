@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WebSocketMessage",
+  "type": "object",
+  "required": ["type", "payload"],
+  "properties": {
+    "type": { "type": "string" },
+    "payload": { "type": "object" }
+  },
+  "oneOf": [
+    { "$ref": "#/definitions/chat_send" },
+    { "$ref": "#/definitions/workflow_run" },
+    { "$ref": "#/definitions/approval_respond" },
+    { "$ref": "#/definitions/chat_message" },
+    { "$ref": "#/definitions/workflow_progress" },
+    { "$ref": "#/definitions/workflow_completed" },
+    { "$ref": "#/definitions/approval_requested" },
+    { "$ref": "#/definitions/approval_resolved" },
+    { "$ref": "#/definitions/system_status" },
+    { "$ref": "#/definitions/error" }
+  ],
+  "definitions": {
+    "chat_send": {
+      "type": "object",
+      "required": ["type", "payload"],
+      "properties": {
+        "type": { "const": "chat.send" },
+        "payload": {
+          "type": "object",
+          "required": ["sessionId", "text"],
+          "properties": {
+            "sessionId": { "type": "string" },
+            "text": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "workflow_run": {
+      "type": "object",
+      "required": ["type", "payload"],
+      "properties": {
+        "type": { "const": "workflow.run" },
+        "payload": {
+          "type": "object",
+          "required": ["workflowId"],
+          "properties": {
+            "workflowId": { "type": "string" },
+            "sessionId": { "type": "string" },
+            "params": { "type": "object" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "approval_respond": {
+      "type": "object",
+      "required": ["type", "payload"],
+      "properties": {
+        "type": { "const": "approval.respond" },
+        "payload": {
+          "type": "object",
+          "required": ["approvalId", "response"],
+          "properties": {
+            "approvalId": { "type": "string" },
+            "response": { "type": "string", "enum": ["approve", "reject"] },
+            "remember": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "chat_message": {
+      "type": "object",
+      "required": ["type", "payload"],
+      "properties": {
+        "type": { "const": "chat.message" },
+        "payload": {
+          "type": "object",
+          "required": ["sessionId", "messageId", "role", "content", "createdAt"],
+          "properties": {
+            "sessionId": { "type": "string" },
+            "messageId": { "type": "string" },
+            "role": { "type": "string", "enum": ["user", "assistant", "system"] },
+            "content": { "type": "string" },
+            "createdAt": { "type": "string", "format": "date-time" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "workflow_progress": {
+      "type": "object",
+      "required": ["type", "payload"],
+      "properties": {
+        "type": { "const": "workflow.progress" },
+        "payload": {
+          "type": "object",
+          "required": ["runId", "status", "progress"],
+          "properties": {
+            "runId": { "type": "string" },
+            "status": { "type": "string" },
+            "progress": { "type": "number", "minimum": 0, "maximum": 1 },
+            "etaSeconds": { "type": "integer" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "workflow_completed": {
+      "type": "object",
+      "required": ["type", "payload"],
+      "properties": {
+        "type": { "const": "workflow.completed" },
+        "payload": {
+          "type": "object",
+          "required": ["runId", "status"],
+          "properties": {
+            "runId": { "type": "string" },
+            "status": { "type": "string" },
+            "outputSummary": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "approval_requested": {
+      "type": "object",
+      "required": ["type", "payload"],
+      "properties": {
+        "type": { "const": "approval.requested" },
+        "payload": {
+          "type": "object",
+          "required": ["approvalId", "action", "context", "riskLevel"],
+          "properties": {
+            "approvalId": { "type": "string" },
+            "action": { "type": "string" },
+            "context": { "type": "object" },
+            "riskLevel": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "approval_resolved": {
+      "type": "object",
+      "required": ["type", "payload"],
+      "properties": {
+        "type": { "const": "approval.resolved" },
+        "payload": {
+          "type": "object",
+          "required": ["approvalId", "status"],
+          "properties": {
+            "approvalId": { "type": "string" },
+            "status": { "type": "string", "enum": ["approved", "rejected"] }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "system_status": {
+      "type": "object",
+      "required": ["type", "payload"],
+      "properties": {
+        "type": { "const": "system.status" },
+        "payload": {
+          "type": "object",
+          "required": ["opencodeHealthy"],
+          "properties": {
+            "opencodeHealthy": { "type": "boolean" },
+            "opencodeVersion": { "type": "string" },
+            "mcpStatus": { "type": "object" },
+            "latencyMs": { "type": "number" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "error": {
+      "type": "object",
+      "required": ["type", "payload"],
+      "properties": {
+        "type": { "const": "error" },
+        "payload": {
+          "type": "object",
+          "required": ["message"],
+          "properties": {
+            "message": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

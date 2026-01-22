@@ -1,4 +1,6 @@
-Head Assistant (OpenCode runtime)
+Head Assistant (OpenCode runtime) - Deprecated
+
+This service has been replaced by the middle layer server in `middleware/`.
 
 Quick start
 1) Install deps

@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WorkflowDefinitionList",
+  "type": "object",
+  "required": ["workflows"],
+  "properties": {
+    "workflows": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/workflow" }
+    }
+  },
+  "definitions": {
+    "workflow": {
+      "type": "object",
+      "required": ["id", "name", "steps"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "enabled": { "type": "boolean", "default": true },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/step" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "step": {
+      "oneOf": [
+        { "$ref": "#/definitions/step_opencode_prompt" },
+        { "$ref": "#/definitions/step_approval" },
+        { "$ref": "#/definitions/step_delay" }
+      ]
+    },
+    "step_opencode_prompt": {
+      "type": "object",
+      "required": ["type", "prompt"],
+      "properties": {
+        "type": { "const": "opencode_prompt" },
+        "prompt": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "step_approval": {
+      "type": "object",
+      "required": ["type", "action"],
+      "properties": {
+        "type": { "const": "approval" },
+        "action": { "type": "string" },
+        "context": { "type": "object" },
+        "risk_level": { "type": "string", "enum": ["low", "medium", "high"] }
+      },
+      "additionalProperties": false
+    },
+    "step_delay": {
+      "type": "object",
+      "required": ["type", "seconds"],
+      "properties": {
+        "type": { "const": "delay" },
+        "seconds": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    }
+  }
+}
