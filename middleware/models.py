@@ -93,3 +93,21 @@ class Approval(Base):
     resolved_by = Column(String(64), nullable=True)
 
     workflow_run = relationship("WorkflowRun", back_populates="approvals")
+
+
+class Task(Base):
+    __tablename__ = "tasks"
+
+    id = Column(String(36), primary_key=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    status = Column(String(32), default="todo")  # todo, in_progress, review, blocked, done
+    queue = Column(String(64), default="general") # general, engineering, approvals
+    priority = Column(String(16), default="medium") # low, medium, high, critical
+    owner_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    tags_json = Column(Text, nullable=True) # JSON list of strings
+    due_date = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    owner = relationship("User")

@@ -20,6 +20,13 @@
       "env": {
         "GOOGLE_APPLICATION_CREDENTIALS": "/secrets/gcp.json"
       }
+    },
+    "glassbox-tasks": {
+      "command": "python3",
+      "args": ["-m", "middleware.mcp_server"],
+      "env": {
+        "MIDDLEWARE_API_URL": "http://localhost:8099"
+      }
     }
   }
 }

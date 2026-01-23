@@ -84,3 +84,37 @@ class StatusResponse(BaseModel):
 class NotificationRegisterRequest(BaseModel):
     user_id: str
     device_token: str
+
+
+class TaskCreateRequest(BaseModel):
+    title: str
+    description: Optional[str] = None
+    queue: Optional[str] = "general"
+    priority: Optional[str] = "medium"
+    due_date: Optional[datetime] = None
+    tags: list[str] = Field(default_factory=list)
+
+
+class TaskUpdateRequest(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    queue: Optional[str] = None
+    priority: Optional[str] = None
+    owner_id: Optional[str] = None
+    tags: Optional[list[str]] = None
+    due_date: Optional[datetime] = None
+
+
+class TaskResponse(BaseModel):
+    id: str
+    title: str
+    description: Optional[str] = None
+    status: str
+    queue: str
+    priority: str
+    owner_id: Optional[str] = None
+    tags: list[str] = Field(default_factory=list)
+    due_date: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime

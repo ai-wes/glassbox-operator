@@ -35,6 +35,14 @@
       "type": "remote",
       "url": "http://127.0.0.1:8081/mcp",
       "enabled": true
+    },
+    "glassbox-tasks": {
+      "type": "local",
+      "command": ["/home/weslinux/glassbox-operator/venv/bin/python", "/home/weslinux/glassbox-operator/middleware/mcp_server.py"],
+      "environment": {
+        "MIDDLEWARE_API_URL": "http://localhost:8099"
+      },
+      "enabled": true
     }
   }
 }

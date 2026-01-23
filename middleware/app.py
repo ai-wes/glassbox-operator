@@ -4,7 +4,7 @@ from middleware.config import load_settings
 from middleware.db import SessionLocal
 from middleware.events import EventBridge
 from middleware.opencode.client import OpenCodeClient
-from middleware.routers import approvals, health, notifications, sessions, workflows
+from middleware.routers import approvals, health, notifications, sessions, tasks, workflows
 from middleware.services.sessions import add_message
 from middleware.services.asr import AsrService, AsrSettings, handle_asr_websocket
 from middleware.services.prompt import build_system_prompt, ensure_skills_installed, load_agents_md, load_skills
@@ -25,6 +25,7 @@ app.include_router(sessions.router)
 app.include_router(workflows.router)
 app.include_router(approvals.router)
 app.include_router(notifications.router)
+app.include_router(tasks.router)
 
 
 @app.on_event("startup")
