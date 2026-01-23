@@ -38,7 +38,7 @@ ASR_MAX_SECONDS=120
 ASR_BATCH_SIZE=1
 
 3) Run migrations
-   alembic -c middleware/alembic.ini upgrade head
+   PYTHONPATH=. alembic -c middleware/alembic.ini upgrade head
 
 4) Run server
    uvicorn middleware.app:app --host 0.0.0.0 --port 8099

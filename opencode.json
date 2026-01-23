@@ -1,0 +1,40 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+
+
+  "provider": {
+    "vertex": {
+      "npm": "@ai-sdk/google-vertex",
+      "name": "Vertex AI",
+      "options": {
+        "project": "glassbox-marketplace-prod",
+        "location": "global"
+      },
+      "models": {
+        "gemini-3-pro-preview": {
+          "name": "Gemini 3 Pro Preview"
+        },
+        "gemini-3-flash-preview": {
+          "name": "Gemini 3 Flash Preview"
+        }
+
+      }
+    }
+  },
+
+  "model": "vertex/gemini-3-pro-preview",
+
+  "mcp": {
+    "glassbox-operator-mcp": {
+      "type": "remote",
+      "url": "https://glassbox-operator-mcp-662656813262.us-central1.run.app/mcp",
+      "enabled": true
+    },
+    "docker-mcp-gateway": {
+      "type": "remote",
+      "url": "http://127.0.0.1:8081/mcp",
+      "enabled": true
+    }
+  }
+}

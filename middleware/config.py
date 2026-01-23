@@ -1,28 +1,29 @@
 import os
 from dataclasses import dataclass
+from typing import List, Optional
 
 
 @dataclass
 class Settings:
     opencode_url: str
-    opencode_username: str | None
-    opencode_password: str | None
+    opencode_username: Optional[str]
+    opencode_password: Optional[str]
     opencode_timeout: int
-    opencode_model: str | None
-    opencode_agent: str | None
-    operator_mcp_url: str | None
-    operator_api_key: str | None
+    opencode_model: Optional[str]
+    opencode_agent: Optional[str]
+    operator_mcp_url: Optional[str]
+    operator_api_key: Optional[str]
     system_prompt: str
     inject_agents: bool
     agents_path: str
-    skill_paths: list[str]
+    skill_paths: List[str]
     install_skills: bool
     repo_root: str
     db_url: str
     host: str
     port: int
     enable_events: bool
-    workflows_json: str | None
+    workflows_json: Optional[str]
     scheduler_tick_seconds: int
     asr_enabled: bool
     asr_model_name: str
@@ -76,7 +77,7 @@ def load_settings() -> Settings:
     )
 
 
-def _resolve_skill_paths(raw: str | None, repo_root: str) -> list[str]:
+def _resolve_skill_paths(raw: Optional[str], repo_root: str) -> List[str]:
     if raw:
         return [p.strip() for p in raw.split(",") if p.strip()]
     default_paths = [
