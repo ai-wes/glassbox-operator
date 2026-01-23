@@ -27,23 +27,6 @@ MIDDLEWARE_PORT=8099
 MIDDLEWARE_ENABLE_EVENTS=1
 MIDDLEWARE_WORKFLOWS_JSON=/opt/glassbox-operator/middleware/workflows.json
 MIDDLEWARE_SCHEDULER_TICK=5
-TTS_ENABLED=0
-TTS_LANG=en
-TTS_TLD=com
-TTS_SLOW=0
-ELEVENLABS_TTS_ENABLED=0
-ELEVENLABS_API_KEY=
-ELEVENLABS_BASE_URL=wss://api.elevenlabs.io
-ELEVENLABS_VOICE_ID=
-ELEVENLABS_MODEL_ID=
-ELEVENLABS_OUTPUT_FORMAT=mp3_44100_128
-ELEVENLABS_LANGUAGE_CODE=
-ELEVENLABS_ENABLE_LOGGING=1
-ELEVENLABS_ENABLE_SSML=0
-ELEVENLABS_INACTIVITY_TIMEOUT=20
-ELEVENLABS_SYNC_ALIGNMENT=0
-ELEVENLABS_AUTO_MODE=0
-ELEVENLABS_TEXT_NORMALIZATION=auto
 ASR_ENABLED=0
 ASR_MODEL_NAME=nvidia/nemotron-speech-streaming-en-0.6b
 ASR_DEVICE=
@@ -77,32 +60,6 @@ This server can expose a streaming ASR WebSocket endpoint backed by NVIDIA NeMo.
 
 WebSocket
 - /ws/asr
-
-TTS (Text-to-Speech)
-When enabled, assistant replies trigger a chat.tts message over /ws with base64 audio.
-
-WS message
-   {
-      "type": "chat.tts",
-      "payload": {
-         "sessionId": "...",
-         "messageId": "...",
-         "mime": "audio/mpeg",
-         "audioBase64": "..."
-      }
-
-   ElevenLabs streaming proxy (frontend-friendly)
-   Use this to keep the API key on the server while the app streams text and receives
-   audio chunks directly from ElevenLabs.
-
-   WebSocket
-   - /ws/tts/elevenlabs
-
-   Flow
-   1) Client opens /ws/tts/elevenlabs
-   2) Client sends ElevenLabs stream-input JSON messages (init, text, flush)
-   3) Server forwards responses from ElevenLabs back to the client
-   }
 
 Example client
    python middleware/asr_client.py ./audio.wav --url ws://localhost:8099/ws/asr

@@ -1,5 +1,3 @@
-import base64
-
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
 from middleware.config import load_settings
@@ -9,8 +7,6 @@ from middleware.opencode.client import OpenCodeClient
 from middleware.routers import approvals, health, notifications, sessions, workflows
 from middleware.services.sessions import add_message
 from middleware.services.asr import AsrService, AsrSettings, handle_asr_websocket
-from middleware.services.tts import TtsService, TtsSettings
-from middleware.services.elevenlabs_tts import ElevenLabsTtsSettings, proxy_tts_websocket
 from middleware.services.prompt import build_system_prompt, ensure_skills_installed, load_agents_md, load_skills
 from middleware.ws import ConnectionManager
 from middleware.workflows.registry import load_workflows_from_file
@@ -69,16 +65,6 @@ def on_startup() -> None:
     if settings.enable_events:
         app.state.event_bridge = EventBridge(app.state.opencode_client, app.state.ws_manager)
         app.state.event_bridge.start()
-    app.state.tts_service = None
-    if settings.tts_enabled:
-        app.state.tts_service = TtsService(
-            TtsSettings(
-                enabled=True,
-                lang=settings.tts_lang,
-                tld=settings.tts_tld,
-                slow=settings.tts_slow,
-            )
-        )
     app.state.asr_service = None
     if settings.asr_enabled:
         app.state.asr_service = AsrService(
@@ -94,21 +80,6 @@ def on_startup() -> None:
                 batch_size=settings.asr_batch_size,
             )
         )
-    app.state.elevenlabs_tts_settings = ElevenLabsTtsSettings(
-        enabled=settings.elevenlabs_enabled,
-        api_key=settings.elevenlabs_api_key,
-        base_url=settings.elevenlabs_base_url,
-        voice_id=settings.elevenlabs_voice_id,
-        model_id=settings.elevenlabs_model_id,
-        output_format=settings.elevenlabs_output_format,
-        language_code=settings.elevenlabs_language_code,
-        enable_logging=settings.elevenlabs_enable_logging,
-        enable_ssml=settings.elevenlabs_enable_ssml,
-        inactivity_timeout=settings.elevenlabs_inactivity_timeout,
-        sync_alignment=settings.elevenlabs_sync_alignment,
-        auto_mode=settings.elevenlabs_auto_mode,
-        text_normalization=settings.elevenlabs_text_normalization,
-    )
 
 
 @app.on_event("shutdown")
@@ -125,25 +96,6 @@ def on_shutdown() -> None:
 async def websocket_endpoint(websocket: WebSocket):
     manager: ConnectionManager = app.state.ws_manager
     await manager.connect(websocket)
-    tts_service = getattr(app.state, "tts_service", None)
-
-    async def _emit_tts(session_id: str, message_id: str, text: str) -> None:
-        if not tts_service:
-            return
-        if not text:
-            return
-        audio = await tts_service.synthesize(text)
-        if not audio:
-            return
-        await manager.broadcast({
-            "type": "chat.tts",
-            "payload": {
-                "sessionId": session_id,
-                "messageId": message_id,
-                "mime": "audio/mpeg",
-                "audioBase64": base64.b64encode(audio).decode("utf-8"),
-            },
-        })
     try:
         while True:
             data = await websocket.receive_json()
@@ -191,7 +143,6 @@ async def websocket_endpoint(websocket: WebSocket):
                             "createdAt": assistant_msg.created_at.isoformat(),
                         },
                     })
-                    await _emit_tts(session_id, assistant_msg.id, assistant_msg.content)
                 finally:
                     db.close()
 
@@ -265,7 +216,6 @@ async def websocket_asr(websocket: WebSocket):
         await websocket.close()
         return
     session_id = websocket.query_params.get("sessionId")
-    tts_service = getattr(app.state, "tts_service", None)
 
     async def _on_transcript(text: str, is_final: bool, resolved_session_id: str | None) -> None:
         if not is_final:
@@ -310,18 +260,6 @@ async def websocket_asr(websocket: WebSocket):
                     "createdAt": assistant_msg.created_at.isoformat(),
                 },
             })
-            if tts_service and assistant_msg.content:
-                audio = await tts_service.synthesize(assistant_msg.content)
-                if audio:
-                    await app.state.ws_manager.broadcast({
-                        "type": "chat.tts",
-                        "payload": {
-                            "sessionId": session.id,
-                            "messageId": assistant_msg.id,
-                            "mime": "audio/mpeg",
-                            "audioBase64": base64.b64encode(audio).decode("utf-8"),
-                        },
-                    })
         finally:
             db.close()
 
@@ -332,9 +270,3 @@ async def websocket_asr(websocket: WebSocket):
         session_id=session_id,
         on_transcript=_on_transcript,
     )
-
-
-@app.websocket("/ws/tts/elevenlabs")
-async def websocket_tts_elevenlabs(websocket: WebSocket):
-    settings = app.state.elevenlabs_tts_settings
-    await proxy_tts_websocket(websocket, settings)
