@@ -10,7 +10,7 @@ Quick start
 2) Configure env
    export OPENCODE_URL=http://127.0.0.1:4096
    export OPENCODE_USERNAME=opencode
-   export OPENCODE_PASSWORD=...
+   export OPENCODE_PASSWORD=opencode
    export OPENCODE_MODEL=
    export OPENCODE_AGENT=
    export OPERATOR_MCP_URL=
@@ -24,7 +24,7 @@ Quick start
    export MIDDLEWARE_WORKFLOWS_JSON=/opt/glassbox-operator/middleware/workflows.json
 
 3) Run migrations
-   alembic -c middleware/alembic.ini upgrade head
+   PYTHONPATH=. alembic -c middleware/alembic.ini upgrade head
 
 4) Run server
    uvicorn middleware.app:app --host 0.0.0.0 --port 8099
