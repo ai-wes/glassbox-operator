@@ -24,6 +24,15 @@ class Settings:
     enable_events: bool
     workflows_json: str | None
     scheduler_tick_seconds: int
+    asr_enabled: bool
+    asr_model_name: str
+    asr_device: str | None
+    asr_sample_rate: int
+    asr_sample_width: int
+    asr_channels: int
+    asr_interim_every_chunks: int
+    asr_max_seconds: int
+    asr_batch_size: int
 
 
 def load_settings() -> Settings:
@@ -36,10 +45,11 @@ def load_settings() -> Settings:
         opencode_model=os.getenv("OPENCODE_MODEL"),
         opencode_agent=os.getenv("OPENCODE_AGENT"),
         operator_mcp_url=os.getenv("OPERATOR_MCP_URL"),
-        operator_api_key=os.getenv("OPERATOR_API_KEY"),
-        system_prompt=os.getenv(
-            "SYSTEM_PROMPT",
-            "You are the Head Assistant. You can use tools when needed. Prefer MCP tools for external systems. Be concise and action-oriented.",
+        tts_enabled=os.getenv("TTS_ENABLED", "0") == "1",
+        tts_lang=os.getenv("TTS_LANG", "en"),
+        tts_tld=os.getenv("TTS_TLD", "com"),
+        tts_slow=os.getenv("TTS_SLOW", "0") == "1",
+        system_prompt=os.getenv("SYSTEM_PROMPT", "You are the Head Assistant. You can use tools when needed. Prefer MCP tools for external systems. Be concise and action-oriented.",
         ),
         inject_agents=os.getenv("INJECT_AGENTS", "1") == "1",
         agents_path=os.getenv("AGENTS_PATH", os.path.join(repo_root, "AGENTS.md")),
@@ -52,6 +62,23 @@ def load_settings() -> Settings:
         enable_events=os.getenv("MIDDLEWARE_ENABLE_EVENTS", "1") == "1",
         workflows_json=os.getenv("MIDDLEWARE_WORKFLOWS_JSON"),
         scheduler_tick_seconds=int(os.getenv("MIDDLEWARE_SCHEDULER_TICK", "5")),
+        asr_enabled=os.getenv("ASR_ENABLED", "0") == "1",
+        asr_model_name=os.getenv(
+            "ASR_MODEL_NAME",
+            "nvidia/nemotron-speech-streaming-en-0.6b",
+        ),
+        asr_device=os.getenv("ASR_DEVICE"),
+        asr_sample_rate=int(os.getenv("ASR_SAMPLE_RATE", "16000")),
+        asr_sample_width=int(os.getenv("ASR_SAMPLE_WIDTH", "2")),
+        asr_channels=int(os.getenv("ASR_CHANNELS", "1")),
+        asr_interim_every_chunks=int(os.getenv("ASR_INTERIM_EVERY_CHUNKS", "5")),
+        asr_max_seconds=int(os.getenv("ASR_MAX_SECONDS", "120")),
+        asr_batch_size=int(os.getenv("ASR_BATCH_SIZE", "1")),
+        tts_enabled=os.getenv("TTS_ENABLED", "0") == "1",
+        tts_lang=os.getenv("TTS_LANG", "en"),
+        tts_tld=os.getenv("TTS_TLD", "com"),
+        tts_slow=os.getenv("TTS_SLOW", "0") == "1",
+
     )
 
 
@@ -65,5 +92,9 @@ def _resolve_skill_paths(raw: str | None, repo_root: str) -> list[str]:
         "awesome-claude-skills/connect-apps/SKILL.md",
         "awesome-claude-skills/mcp-builder/SKILL.md",
         "awesome-claude-skills/meeting-insights-analyzer/SKILL.md",
+        "skils/skills/skill-creator/SKILL.md",
+        "awesome-claude-skills/document-skills/SKILL.md",
+        "awesome-claude-skills/webapp-testing/SKILL.md",
+        
     ]
     return [os.path.join(repo_root, p) for p in default_paths]
