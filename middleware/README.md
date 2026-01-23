@@ -8,26 +8,112 @@ Quick start
    pip install -r middleware/requirements.txt
 
 2) Configure env
-   export OPENCODE_URL=http://127.0.0.1:4096
-   export OPENCODE_USERNAME=opencode
-   export OPENCODE_PASSWORD=opencode
-   export OPENCODE_MODEL=
-   export OPENCODE_AGENT=
-   export OPERATOR_MCP_URL=
-   export OPERATOR_API_KEY=
-   export SYSTEM_PROMPT="You are the Head Assistant. You can use tools when needed. Prefer MCP tools for external systems. Be concise and action-oriented."
-   export INJECT_AGENTS=1
-   export AGENTS_PATH=/opt/glassbox-operator/AGENTS.md
-   export SKILL_PATHS="awesome-claude-skills/lead-research-assistant/SKILL.md,awesome-claude-skills/content-research-writer/SKILL.md,awesome-claude-skills/artifacts-builder/SKILL.md,awesome-claude-skills/connect-apps/SKILL.md,awesome-claude-skills/mcp-builder/SKILL.md,awesome-claude-skills/meeting-insights-analyzer/SKILL.md"
-   export INSTALL_SKILLS=1
-   export MIDDLEWARE_DB_URL=sqlite:///./middleware.db
-   export MIDDLEWARE_WORKFLOWS_JSON=/opt/glassbox-operator/middleware/workflows.json
+OPENCODE_URL=http://127.0.0.1:4096
+OPENCODE_USERNAME=opencode
+OPENCODE_PASSWORD=
+OPENCODE_TIMEOUT=120
+OPENCODE_MODEL=
+OPENCODE_AGENT=
+OPERATOR_MCP_URL=
+OPERATOR_API_KEY=
+SYSTEM_PROMPT=You are the Head Assistant. You can use tools when needed. Prefer MCP tools for external systems. Be concise and action-oriented.
+INJECT_AGENTS=1
+AGENTS_PATH=/opt/glassbox-operator/AGENTS.md
+SKILL_PATHS=awesome-claude-skills/lead-research-assistant/SKILL.md,awesome-claude-skills/content-research-writer/SKILL.md,awesome-claude-skills/artifacts-builder/SKILL.md,awesome-claude-skills/connect-apps/SKILL.md,awesome-claude-skills/mcp-builder/SKILL.md,awesome-claude-skills/meeting-insights-analyzer/SKILL.md
+INSTALL_SKILLS=1
+MIDDLEWARE_DB_URL=sqlite:///./middleware.db
+MIDDLEWARE_HOST=0.0.0.0
+MIDDLEWARE_PORT=8099
+MIDDLEWARE_ENABLE_EVENTS=1
+MIDDLEWARE_WORKFLOWS_JSON=/opt/glassbox-operator/middleware/workflows.json
+MIDDLEWARE_SCHEDULER_TICK=5
+TTS_ENABLED=0
+TTS_LANG=en
+TTS_TLD=com
+TTS_SLOW=0
+ELEVENLABS_TTS_ENABLED=0
+ELEVENLABS_API_KEY=
+ELEVENLABS_BASE_URL=wss://api.elevenlabs.io
+ELEVENLABS_VOICE_ID=
+ELEVENLABS_MODEL_ID=
+ELEVENLABS_OUTPUT_FORMAT=mp3_44100_128
+ELEVENLABS_LANGUAGE_CODE=
+ELEVENLABS_ENABLE_LOGGING=1
+ELEVENLABS_ENABLE_SSML=0
+ELEVENLABS_INACTIVITY_TIMEOUT=20
+ELEVENLABS_SYNC_ALIGNMENT=0
+ELEVENLABS_AUTO_MODE=0
+ELEVENLABS_TEXT_NORMALIZATION=auto
+ASR_ENABLED=0
+ASR_MODEL_NAME=nvidia/nemotron-speech-streaming-en-0.6b
+ASR_DEVICE=
+ASR_SAMPLE_RATE=16000
+ASR_SAMPLE_WIDTH=2
+ASR_CHANNELS=1
+ASR_INTERIM_EVERY_CHUNKS=5
+ASR_MAX_SECONDS=120
+ASR_BATCH_SIZE=1
 
 3) Run migrations
    PYTHONPATH=. alembic -c middleware/alembic.ini upgrade head
 
 4) Run server
    uvicorn middleware.app:app --host 0.0.0.0 --port 8099
+
+ASR (Streaming Speech-to-Text)
+This server can expose a streaming ASR WebSocket endpoint backed by NVIDIA NeMo.
+
+1) System deps (Linux)
+   apt-get update && apt-get install -y libsndfile1 ffmpeg
+
+2) Python deps
+   pip install Cython packaging
+   pip install git+https://github.com/NVIDIA/NeMo.git@main#egg=nemo_toolkit[asr]
+
+3) Enable ASR
+   export ASR_ENABLED=1
+   export ASR_MODEL_NAME=nvidia/nemotron-speech-streaming-en-0.6b
+   export ASR_DEVICE=cuda  # or cpu
+
+WebSocket
+- /ws/asr
+
+TTS (Text-to-Speech)
+When enabled, assistant replies trigger a chat.tts message over /ws with base64 audio.
+
+WS message
+   {
+      "type": "chat.tts",
+      "payload": {
+         "sessionId": "...",
+         "messageId": "...",
+         "mime": "audio/mpeg",
+         "audioBase64": "..."
+      }
+
+   ElevenLabs streaming proxy (frontend-friendly)
+   Use this to keep the API key on the server while the app streams text and receives
+   audio chunks directly from ElevenLabs.
+
+   WebSocket
+   - /ws/tts/elevenlabs
+
+   Flow
+   1) Client opens /ws/tts/elevenlabs
+   2) Client sends ElevenLabs stream-input JSON messages (init, text, flush)
+   3) Server forwards responses from ElevenLabs back to the client
+   }
+
+Example client
+   python middleware/asr_client.py ./audio.wav --url ws://localhost:8099/ws/asr
+   python middleware/asr_client.py ./audio.wav --url ws://localhost:8099/ws/asr --session-id <session_id>
+
+Forwarding to OpenCode
+If a session id is provided (query param or start message), the final transcript is sent
+to the OpenCode session and the assistant reply is broadcast to /ws clients.
+
+Session id via query param:
+  ws://localhost:8099/ws/asr?sessionId=<session_id>
 
 HTTP
 - GET /health
@@ -45,3 +131,4 @@ HTTP
 
 WebSocket
 - /ws
+- /ws/asr
