@@ -16,6 +16,7 @@ OPENCODE_MODEL=
 OPENCODE_AGENT=
 OPERATOR_MCP_URL=
 OPERATOR_API_KEY=
+SYSTEM_PROMPT_FILE=/opt/glassbox-operator/middleware/prompts/head_assistant.txt
 SYSTEM_PROMPT=You are the Head Assistant. You can use tools when needed. Prefer MCP tools for external systems. Be concise and action-oriented.
 INJECT_AGENTS=1
 AGENTS_PATH=/opt/glassbox-operator/AGENTS.md
@@ -83,7 +84,24 @@ HTTP
 - POST /workflows/{id}/run
 - GET /workflows/runs/{runId}
 - GET /approvals
+- GET /approvals/inbox
 - POST /approvals/{id}/respond
+- GET /task-templates
+- POST /task-templates
+- GET /tasks
+- POST /tasks
+- PATCH /tasks/{id}
+- POST /tasks/{id}/start
+- POST /tasks/{id}/execute
+- GET /tasks/{id}/artifacts
+- POST /tasks/{id}/artifacts
+- POST /tasks/{id}/approve
+- POST /tasks/{id}/reject
+- POST /tasks/{id}/request-revision
+- POST /tasks/spawn/daily
+- POST /tasks/assistant/next
+- GET /events
+- GET /events/stream
 - POST /notifications/register
 
 WebSocket

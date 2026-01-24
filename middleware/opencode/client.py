@@ -81,6 +81,25 @@ class OpenCodeClient:
         resp.raise_for_status()
         return bool(resp.json()) if resp.content else True
 
+    def session_command(
+        self,
+        session_id: str,
+        command: str,
+        arguments: Optional[Dict[str, Any]] = None,
+        model: Optional[str] = None,
+        agent: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        body: Dict[str, Any] = {"command": command}
+        if arguments:
+            body["arguments"] = arguments
+        if model:
+            body["model"] = model
+        if agent:
+            body["agent"] = agent
+        resp = requests.post(self._url(f"/session/{session_id}/command"), json=body, auth=self.auth, timeout=self.timeout)
+        resp.raise_for_status()
+        return resp.json()
+
     def stream_events(self):
         resp = requests.get(self._url("/event"), auth=self.auth, timeout=self.timeout, stream=True)
         resp.raise_for_status()

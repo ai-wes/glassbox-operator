@@ -11,22 +11,22 @@ mcp = FastMCP("glassbox-tasks")
 
 @mcp.tool()
 def list_tasks(
-    status: Optional[str] = None,
-    queue: Optional[str] = None
+    lane: Optional[str] = None,
+    day_bucket: Optional[str] = None
 ) -> str:
     """
-    List tasks from the middleware, optionally filtering by status or queue.
+    List tasks from the middleware, optionally filtering by lane or day bucket.
     
     Args:
-        status: Filter tasks by status (e.g., 'todo', 'in_progress', 'done')
-        queue: Filter tasks by queue (e.g., 'general', 'engineering', 'approvals')
+        lane: Filter tasks by lane (TODAY, DOING, NEEDS_APPROVAL, QUEUED, DONE, BLOCKED, CANCELLED)
+        day_bucket: Filter tasks by YYYY-MM-DD
     """
     try:
         params = {}
-        if status:
-            params["status"] = status
-        if queue:
-            params["queue"] = queue
+        if lane:
+            params["lane"] = lane
+        if day_bucket:
+            params["day_bucket"] = day_bucket
             
         resp = requests.get(f"{API_BASE_URL}/tasks", params=params)
         resp.raise_for_status()
@@ -38,14 +38,13 @@ def list_tasks(
         # Format as a readable list
         output = []
         for t in tasks:
-            output.append(f"[{t['status'].upper()}] {t['title']} (ID: {t['id']})")
+            output.append(f"[{t['lane']}] {t['title']} (ID: {t['id']})")
             if t.get('description'):
                 output.append(f"  Description: {t['description']}")
-            output.append(f"  Queue: {t['queue']} | Priority: {t['priority']}")
-            if t.get('due_date'):
-                output.append(f"  Due: {t['due_date']}")
-            if t.get('tags'):
-                output.append(f"  Tags: {', '.join(t['tags'])}")
+            output.append(f"  Priority: {t['priority']} | Mode: {t['execution_mode']}")
+            output.append(f"  Approval: {t['approval_state']} | Run: {t['run_state']}")
+            if t.get('day_bucket'):
+                output.append(f"  Day: {t['day_bucket']}")
             output.append("---")
             
         return "\n".join(output)
@@ -56,10 +55,11 @@ def list_tasks(
 def create_task(
     title: str,
     description: Optional[str] = None,
-    queue: str = "general",
-    priority: str = "medium",
-    due_date: Optional[str] = None,
-    tags: Optional[list[str]] = None
+    lane: str = "TODAY",
+    execution_mode: str = "AUTO",
+    mcp_action: Optional[str] = None,
+    priority: int = 50,
+    day_bucket: Optional[str] = None
 ) -> str:
     """
     Create a new task.
@@ -67,19 +67,21 @@ def create_task(
     Args:
         title: Title of the task
         description: Detailed description
-        queue: Queue name (default: general)
-        priority: Priority (low, medium, high, critical)
-        due_date: ISO 8601 date string (optional)
-        tags: List of tags (optional)
+        lane: Kanban lane
+        execution_mode: AUTO | APPROVAL_REQUIRED | APPROVAL_THEN_EXECUTE
+        mcp_action: MCP workflow action name
+        priority: 0-100
+        day_bucket: YYYY-MM-DD
     """
     try:
         payload = {
             "title": title,
             "description": description,
-            "queue": queue,
+            "lane": lane,
+            "execution_mode": execution_mode,
+            "mcp_action": mcp_action,
             "priority": priority,
-            "due_date": due_date,
-            "tags": tags or []
+            "day_bucket": day_bucket,
         }
         
         resp = requests.post(f"{API_BASE_URL}/tasks", json=payload)
@@ -92,20 +94,20 @@ def create_task(
 @mcp.tool()
 def update_task_status(
     task_id: str,
-    status: str
+    lane: str
 ) -> str:
     """
-    Update the status of a task.
+    Update the lane of a task.
     
     Args:
         task_id: The ID of the task to update
-        status: New status (todo, in_progress, review, blocked, done)
+        lane: New lane (TODAY, DOING, NEEDS_APPROVAL, QUEUED, DONE, BLOCKED, CANCELLED)
     """
     try:
-        payload = {"status": status}
+        payload = {"lane": lane}
         resp = requests.patch(f"{API_BASE_URL}/tasks/{task_id}", json=payload)
         resp.raise_for_status()
-        return f"Task {task_id} updated to status: {status}"
+        return f"Task {task_id} updated to lane: {lane}"
     except Exception as e:
         return f"Error updating task: {str(e)}"
 
@@ -147,7 +149,7 @@ def respond_to_approval(
     
     Args:
         approval_id: The ID of the approval
-        response: 'approved' or 'rejected'
+        response: 'approve' or 'reject'
     """
     try:
         payload = {"response": response}

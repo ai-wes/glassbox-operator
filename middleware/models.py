@@ -84,6 +84,7 @@ class Approval(Base):
     id = Column(String(64), primary_key=True)
     workflow_run_id = Column(String(64), ForeignKey("workflow_runs.id"), nullable=True)
     session_id = Column(String(36), ForeignKey("sessions.id"), nullable=True)
+    task_id = Column(String(36), ForeignKey("tasks.id"), nullable=True)
     status = Column(String(32), default="pending")
     action = Column(String(255), nullable=False)
     context_json = Column(Text, nullable=True)
@@ -93,21 +94,81 @@ class Approval(Base):
     resolved_by = Column(String(64), nullable=True)
 
     workflow_run = relationship("WorkflowRun", back_populates="approvals")
+    task = relationship("Task", back_populates="approvals")
+
+
+class TaskTemplate(Base):
+    __tablename__ = "task_templates"
+
+    id = Column(String(64), primary_key=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    schedule_kind = Column(String(32), default="DAILY")
+    schedule_time_local = Column(String(16), nullable=True)
+    enabled = Column(Boolean, default=True)
+    execution_mode = Column(String(32), default="AUTO")
+    default_lane = Column(String(32), default="TODAY")
+    mcp_action = Column(String(255), nullable=True)
+    publish_mcp_action = Column(String(255), nullable=True)
+    default_input_json = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    tasks = relationship("Task", back_populates="template")
 
 
 class Task(Base):
     __tablename__ = "tasks"
 
     id = Column(String(36), primary_key=True)
+    template_id = Column(String(64), ForeignKey("task_templates.id"), nullable=True)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    status = Column(String(32), default="todo")  # todo, in_progress, review, blocked, done
-    queue = Column(String(64), default="general") # general, engineering, approvals
-    priority = Column(String(16), default="medium") # low, medium, high, critical
-    owner_id = Column(String(36), ForeignKey("users.id"), nullable=True)
-    tags_json = Column(Text, nullable=True) # JSON list of strings
-    due_date = Column(DateTime, nullable=True)
+    lane = Column(String(32), default="TODAY")
+    execution_mode = Column(String(32), default="AUTO")
+    mcp_action = Column(String(255), nullable=True)
+    publish_mcp_action = Column(String(255), nullable=True)
+    input_json = Column(Text, nullable=True)
+    approval_state = Column(String(32), default="NONE")
+    run_state = Column(String(32), default="IDLE")
+    attempts = Column(Integer, default=0)
+    max_attempts = Column(Integer, default=1)
+    day_bucket = Column(String(16), nullable=True)
+    priority = Column(Integer, default=50)
+    status_detail = Column(String(255), nullable=True)
+    blocked_reason = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
 
-    owner = relationship("User")
+    template = relationship("TaskTemplate", back_populates="tasks")
+    artifacts = relationship("TaskArtifact", back_populates="task")
+    approvals = relationship("Approval", back_populates="task")
+    events = relationship("TaskEvent", back_populates="task")
+
+
+class TaskArtifact(Base):
+    __tablename__ = "task_artifacts"
+
+    id = Column(String(64), primary_key=True)
+    task_id = Column(String(36), ForeignKey("tasks.id"), nullable=False)
+    type = Column(String(64), nullable=True)
+    content = Column(Text, nullable=False)
+    metadata_json = Column(Text, nullable=True)
+    version = Column(Integer, default=1)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    task = relationship("Task", back_populates="artifacts")
+
+
+class TaskEvent(Base):
+    __tablename__ = "task_events"
+
+    id = Column(String(64), primary_key=True)
+    ts = Column(DateTime, default=datetime.utcnow)
+    actor = Column(String(32), default="SYSTEM")
+    event_type = Column(String(64), nullable=False)
+    task_id = Column(String(36), ForeignKey("tasks.id"), nullable=True)
+    payload_json = Column(Text, nullable=True)
+
+    task = relationship("Task", back_populates="events")

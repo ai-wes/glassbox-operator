@@ -4,7 +4,7 @@ from middleware.config import load_settings
 from middleware.db import SessionLocal
 from middleware.events import EventBridge
 from middleware.opencode.client import OpenCodeClient
-from middleware.routers import approvals, health, notifications, sessions, tasks, workflows
+from middleware.routers import approvals, events, health, notifications, sessions, task_templates, tasks, workflows
 from middleware.services.sessions import add_message
 from middleware.services.asr import AsrService, AsrSettings, handle_asr_websocket
 from middleware.services.prompt import build_system_prompt, ensure_skills_installed, load_agents_md, load_skills
@@ -12,6 +12,8 @@ from middleware.ws import ConnectionManager
 from middleware.workflows.registry import load_workflows_from_file
 from middleware.workflows.runner import WorkflowRunner
 from middleware.workflows.scheduler import WorkflowScheduler
+from middleware.tasks.scheduler import TaskScheduler
+from middleware.services.tasks import spawn_daily_tasks
 from middleware.models import Approval, Session as SessionModel, Workflow, WorkflowRun
 from middleware.services.approvals import resolve_approval
 
@@ -26,6 +28,8 @@ app.include_router(workflows.router)
 app.include_router(approvals.router)
 app.include_router(notifications.router)
 app.include_router(tasks.router)
+app.include_router(task_templates.router)
+app.include_router(events.router)
 
 
 @app.on_event("startup")
@@ -56,12 +60,19 @@ def on_startup() -> None:
     app.state.workflow_runner = WorkflowRunner(app.state.opencode_client, app.state.ws_manager)
     app.state.scheduler = WorkflowScheduler(app.state.workflow_runner, settings.scheduler_tick_seconds)
     app.state.scheduler.start()
+    app.state.task_scheduler = TaskScheduler(app.state.ws_manager, settings.scheduler_tick_seconds)
+    app.state.task_scheduler.start()
     if settings.workflows_json:
         db = SessionLocal()
         try:
             load_workflows_from_file(db, settings.workflows_json)
         finally:
             db.close()
+    db = SessionLocal()
+    try:
+        spawn_daily_tasks(db, app.state.ws_manager)
+    finally:
+        db.close()
     app.state.event_bridge = None
     if settings.enable_events:
         app.state.event_bridge = EventBridge(app.state.opencode_client, app.state.ws_manager)
@@ -91,6 +102,9 @@ def on_shutdown() -> None:
     scheduler = getattr(app.state, "scheduler", None)
     if scheduler:
         scheduler.stop()
+    task_scheduler = getattr(app.state, "task_scheduler", None)
+    if task_scheduler:
+        task_scheduler.stop()
 
 
 @app.websocket("/ws")

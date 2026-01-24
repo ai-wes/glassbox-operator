@@ -38,6 +38,13 @@ class Settings:
 
 def load_settings() -> Settings:
     repo_root = os.path.dirname(os.path.dirname(__file__))
+    system_prompt = _load_system_prompt(
+        os.getenv("SYSTEM_PROMPT_FILE"),
+        os.getenv(
+            "SYSTEM_PROMPT",
+            "You are the Head Assistant. You can use tools when needed. Prefer MCP tools for external systems. Be concise and action-oriented.",
+        ),
+    )
     return Settings(
         opencode_url=os.getenv("OPENCODE_URL", "http://127.0.0.1:4096"),
         opencode_username=os.getenv("OPENCODE_USERNAME", "opencode"),
@@ -47,10 +54,7 @@ def load_settings() -> Settings:
         opencode_agent=os.getenv("OPENCODE_AGENT"),
         operator_mcp_url=os.getenv("OPERATOR_MCP_URL"),
         operator_api_key=os.getenv("OPERATOR_API_KEY"),
-        system_prompt=os.getenv(
-            "SYSTEM_PROMPT",
-            "You are the Head Assistant. You can use tools when needed. Prefer MCP tools for external systems. Be concise and action-oriented.",
-        ),
+        system_prompt=system_prompt,
         inject_agents=os.getenv("INJECT_AGENTS", "1") == "1",
         agents_path=os.getenv("AGENTS_PATH", os.path.join(repo_root, "AGENTS.md")),
         skill_paths=_resolve_skill_paths(os.getenv("SKILL_PATHS"), repo_root),
@@ -93,3 +97,15 @@ def _resolve_skill_paths(raw: Optional[str], repo_root: str) -> List[str]:
         
     ]
     return [os.path.join(repo_root, p) for p in default_paths]
+
+
+def _load_system_prompt(path: Optional[str], fallback: str) -> str:
+    if path:
+        try:
+            with open(path, "r", encoding="utf-8") as handle:
+                content = handle.read().strip()
+            if content:
+                return content
+        except OSError:
+            pass
+    return fallback.strip()

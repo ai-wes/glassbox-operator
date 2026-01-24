@@ -16,6 +16,7 @@
     { "$ref": "#/definitions/workflow_completed" },
     { "$ref": "#/definitions/approval_requested" },
     { "$ref": "#/definitions/approval_resolved" },
+    { "$ref": "#/definitions/task_event" },
     { "$ref": "#/definitions/system_status" },
     { "$ref": "#/definitions/error" }
   ],
@@ -162,6 +163,27 @@
             "status": { "type": "string", "enum": ["approved", "rejected"] }
           },
           "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "task_event": {
+      "type": "object",
+      "required": ["type", "payload"],
+      "properties": {
+        "type": { "const": "task.event" },
+        "payload": {
+          "type": "object",
+          "required": ["id", "ts", "eventType"],
+          "properties": {
+            "id": { "type": "string" },
+            "ts": { "type": "string", "format": "date-time" },
+            "actor": { "type": "string" },
+            "eventType": { "type": "string" },
+            "taskId": { "type": "string" },
+            "payload": { "type": "object" }
+          },
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
