@@ -39,6 +39,29 @@ class OpenCodeClient:
         resp.raise_for_status()
         return resp.json()
 
+    def session_list(self) -> list[Dict[str, Any]]:
+        resp = requests.get(self._url("/session"), auth=self.auth, timeout=self.timeout)
+        resp.raise_for_status()
+        return resp.json()
+
+    def session_get(self, session_id: str) -> Dict[str, Any]:
+        resp = requests.get(self._url(f"/session/{session_id}"), auth=self.auth, timeout=self.timeout)
+        resp.raise_for_status()
+        return resp.json()
+
+    def session_update(self, session_id: str, title: Optional[str] = None) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {}
+        if title is not None:
+            payload["title"] = title
+        resp = requests.patch(self._url(f"/session/{session_id}"), json=payload, auth=self.auth, timeout=self.timeout)
+        resp.raise_for_status()
+        return resp.json()
+
+    def session_delete(self, session_id: str) -> bool:
+        resp = requests.delete(self._url(f"/session/{session_id}"), auth=self.auth, timeout=self.timeout)
+        resp.raise_for_status()
+        return bool(resp.json()) if resp.content else True
+
     def session_status(self) -> Dict[str, Any]:
         resp = requests.get(self._url("/session/status"), auth=self.auth, timeout=self.timeout)
         resp.raise_for_status()

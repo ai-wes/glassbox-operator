@@ -5,7 +5,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session as DbSession
 
-from middleware.models import Message, Session
+from middleware.models import Approval, Message, Session, WorkflowRun
 from middleware.opencode.client import OpenCodeClient
 
 
@@ -83,3 +83,31 @@ def _extract_text(parts: list[dict]) -> str:
         elif isinstance(part.get("content"), str):
             out.append(part["content"])
     return "\n".join(out).strip()
+
+
+def update_session_title(
+    db: DbSession,
+    client: OpenCodeClient,
+    session: Session,
+    title: str | None,
+) -> Session:
+    if title is not None:
+        client.session_update(session.opencode_session_id, title=title)
+        session.title = title
+        session.updated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(session)
+    return session
+
+
+def delete_session(db: DbSession, client: OpenCodeClient, session: Session) -> None:
+    try:
+        client.session_delete(session.opencode_session_id)
+    except Exception:
+        pass
+    db.query(WorkflowRun).filter(WorkflowRun.session_id == session.id).update({"session_id": None})
+    db.query(Approval).filter(Approval.session_id == session.id).update({"session_id": None})
+    db.query(Message).filter(Message.session_id == session.id).delete()
+    session.status = "deleted"
+    db.delete(session)
+    db.commit()

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session as DbSession
 from middleware.db import get_db
 from middleware.models import Message, Session as SessionModel
 from middleware.schemas import MessageCreateRequest, MessageResponse, SessionCreateRequest, SessionResponse
-from middleware.services.sessions import add_message, create_session
+from middleware.services.sessions import add_message, create_session, delete_session, update_session_title
 
 router = APIRouter(prefix="/sessions")
 
@@ -26,6 +26,21 @@ def list_sessions(db: DbSession = Depends(get_db)) -> list[SessionResponse]:
     ]
 
 
+@router.get("/{session_id}", response_model=SessionResponse)
+def get_session(session_id: str, db: DbSession = Depends(get_db)) -> SessionResponse:
+    session = db.get(SessionModel, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="session not found")
+    return SessionResponse(
+        id=session.id,
+        opencode_session_id=session.opencode_session_id,
+        title=session.title,
+        status=session.status,
+        created_at=session.created_at,
+        updated_at=session.updated_at,
+    )
+
+
 @router.post("", response_model=SessionResponse)
 def create_session_endpoint(
     req: SessionCreateRequest,
@@ -42,6 +57,42 @@ def create_session_endpoint(
         created_at=session.created_at,
         updated_at=session.updated_at,
     )
+
+
+@router.patch("/{session_id}", response_model=SessionResponse)
+def update_session(
+    session_id: str,
+    req: SessionCreateRequest,
+    request: Request,
+    db: DbSession = Depends(get_db),
+) -> SessionResponse:
+    session = db.get(SessionModel, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="session not found")
+    client = request.app.state.opencode_client
+    session = update_session_title(db, client, session, req.title)
+    return SessionResponse(
+        id=session.id,
+        opencode_session_id=session.opencode_session_id,
+        title=session.title,
+        status=session.status,
+        created_at=session.created_at,
+        updated_at=session.updated_at,
+    )
+
+
+@router.delete("/{session_id}")
+def delete_session_endpoint(
+    session_id: str,
+    request: Request,
+    db: DbSession = Depends(get_db),
+) -> dict:
+    session = db.get(SessionModel, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="session not found")
+    client = request.app.state.opencode_client
+    delete_session(db, client, session)
+    return {"ok": True}
 
 
 @router.get("/{session_id}/messages", response_model=list[MessageResponse])

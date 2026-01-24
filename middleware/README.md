@@ -78,6 +78,9 @@ HTTP
 - GET /status
 - GET /sessions
 - POST /sessions
+- GET /sessions/{id}
+- PATCH /sessions/{id}
+- DELETE /sessions/{id}
 - GET /sessions/{id}/messages
 - POST /sessions/{id}/messages
 - GET /workflows
